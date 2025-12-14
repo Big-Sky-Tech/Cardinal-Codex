@@ -1,14 +1,15 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+pub mod error;
+pub mod ids;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod model;
+pub mod rules;
+pub mod state;
+pub mod engine;
+pub mod util;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use engine::core::{GameEngine, StepResult};
+pub use error::{EngineError, LegalityError};
+pub use model::action::Action;
+pub use model::event::Event;
+pub use rules::schema::Ruleset;
+pub use state::gamestate::GameState;
