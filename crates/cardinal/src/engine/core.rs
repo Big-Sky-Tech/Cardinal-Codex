@@ -24,6 +24,13 @@ impl GameEngine {
         Self { rules, state: initial_state, seed, next_choice_id: 1, next_stack_id: 1 }
     }
 
+    /// Build a GameEngine directly from a `Ruleset`. This will create a minimal GameState
+    /// via `GameState::from_ruleset`.
+    pub fn from_ruleset(rules: Ruleset, seed: u64) -> Self {
+        let initial = GameState::from_ruleset(&rules);
+        Self { rules, state: initial, seed, next_choice_id: 1, next_stack_id: 1 }
+    }
+
     pub fn legal_actions(&self, player: PlayerId) -> Vec<Action> {
         // Start simple: implement legality later in engine/legality.rs
         // Return only actions that make sense (PassPriority, PlayCard if allowed, etc).
