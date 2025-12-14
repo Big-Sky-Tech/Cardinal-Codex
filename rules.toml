@@ -1,0 +1,391 @@
+# ===========================================
+# TCG GAME STRUCTURE CONFIG
+# ===========================================
+# This file defines *rules of the game itself*:
+# - game + player defaults
+# - zones (hand, deck, field, etc)
+# - turn / phase / step structure
+# - actions players can take
+# - resources & costs
+# - win / loss conditions
+#
+# Card definitions would live in a separate file
+# and reference: zone ids, action ids, keyword ids, etc.
+# ===========================================
+
+[game]
+id          = "my_tcg"
+name        = "My Cool TCG"
+version     = "0.1.0"
+description = "A generic, config-driven TCG used for engine testing."
+
+# -------------------------------------------
+# PLAYER & DECK RULES
+# -------------------------------------------
+[players]
+min_players = 2
+max_players = 2
+
+starting_life      = 20
+max_life           = 9999           # for sanity
+starting_hand_size = 5
+max_hand_size      = 10
+
+min_deck_size      = 40
+max_deck_size      = 60
+
+# mulligan_rule could be interpreted by engine:
+# - "redraw_minus_one": shuffle in hand, draw hand_size-1
+# - "free_first": 1 free full redraw, then redraw_minus_one after
+# - "none": no mulligans
+mulligan_rule      = "free_first"
+
+# How is the first player chosen?
+# - "random", "coin_flip", "loser_goes_first", etc.
+first_player_rule  = "random"
+
+# -------------------------------------------
+# ZONES
+# -------------------------------------------
+# Each zone has:
+# - id: unique identifier
+# - owner_scope: "player" or "shared"
+# - visibility: "public" | "private" | "top_card_public"
+# - ordered: cards have a meaningful order (true/false)
+# - allow_duplicates: if multiple copies of a card can exist here
+# - default_capacity: soft or hard cap, interpreted by engine
+
+[[zones]]
+id               = "deck"
+name             = "Deck"
+owner_scope      = "player"
+visibility       = "private"
+ordered          = true
+allow_duplicates = true
+default_capacity = 60
+
+[[zones]]
+id               = "hand"
+name             = "Hand"
+owner_scope      = "player"
+visibility       = "private"
+ordered          = false
+allow_duplicates = true
+default_capacity = 10
+
+[[zones]]
+id               = "field"
+name             = "Field"
+owner_scope      = "player"
+visibility       = "public"
+ordered          = true
+allow_duplicates = true
+default_capacity = 10
+
+[[zones]]
+id               = "graveyard"
+name             = "Graveyard"
+owner_scope      = "player"
+visibility       = "public"
+ordered          = true          # often matters for "top of GY"
+allow_duplicates = true
+
+[[zones]]
+id               = "banished"
+name             = "Banished"
+owner_scope      = "player"
+visibility       = "public"
+ordered          = false
+allow_duplicates = true
+
+[[zones]]
+id               = "stack"
+name             = "Stack"
+owner_scope      = "shared"
+visibility       = "public"
+ordered          = true
+allow_duplicates = true
+
+# Example of a shared zone like a "command zone" or similar
+[[zones]]
+id               = "command"
+name             = "Command"
+owner_scope      = "shared"
+visibility       = "public"
+ordered          = false
+allow_duplicates = false
+
+# -------------------------------------------
+# RESOURCES
+# -------------------------------------------
+# Generic resource system for costs. The engine does not assume
+# what they *mean*, only that they exist and can be gained/spent.
+
+[[resources]]
+id          = "mana"
+name        = "Mana"
+description = "Basic spendable resource."
+min_value   = 0
+max_value   = 20   # per player; engine can enforce or ignore
+
+[[resources]]
+id          = "action_points"
+name        = "Action Points"
+description = "Limits how many actions a player can take per turn."
+min_value   = 0
+max_value   = 10
+
+# -------------------------------------------
+# TURN STRUCTURE
+# -------------------------------------------
+# Turn structure is:
+#   Turn -> phases -> steps
+#
+# Engine should:
+# - track current phase/step by id
+# - follow 'order' field when advancing
+# - only allow certain actions/priority windows in certain steps
+
+[turn]
+# Does the game use priority-passing inside steps?
+# If true, the engine should handle "active player gets priority,
+# then the other player, etc, until both pass with empty stack."
+priority_system = true
+
+# Some games skip draw on the very first turn for the starting player.
+skip_first_turn_draw_for_first_player = true
+
+# PHASES
+# Each phase can have multiple steps.
+# `order` defines the global order in the turn.
+
+[[turn.phases]]
+id           = "start"
+name         = "Start Phase"
+order        = 1
+allow_actions = false   # typically no player actions here
+
+# Steps inside this phase
+[[turn.phases.steps]]
+id             = "untap"
+name           = "Untap / Ready"
+order          = 1
+allow_actions  = false
+allow_triggers = true    # static triggers may fire
+
+[[turn.phases.steps]]
+id             = "upkeep"
+name           = "Upkeep"
+order          = 2
+allow_actions  = true     # maybe some upkeep abilities
+allow_triggers = true
+
+[[turn.phases.steps]]
+id             = "draw"
+name           = "Draw Step"
+order          = 3
+allow_actions  = false    # usually just the draw
+allow_triggers = true
+
+[[turn.phases]]
+id            = "main1"
+name          = "Main Phase 1"
+order         = 2
+allow_actions = true
+
+[[turn.phases.steps]]
+id             = "main1_actions"
+name           = "Main Actions"
+order          = 1
+allow_actions  = true
+allow_triggers = true
+
+[[turn.phases]]
+id            = "combat"
+name          = "Combat Phase"
+order         = 3
+allow_actions = true
+
+[[turn.phases.steps]]
+id             = "begin_combat"
+name           = "Beginning of Combat"
+order          = 1
+allow_actions  = true
+allow_triggers = true
+
+[[turn.phases.steps]]
+id             = "declare_attackers"
+name           = "Declare Attackers"
+order          = 2
+allow_actions  = true      # attacker declarations count
+allow_triggers = true
+
+[[turn.phases.steps]]
+id             = "declare_blockers"
+name           = "Declare Blockers"
+order          = 3
+allow_actions  = true
+allow_triggers = true
+
+[[turn.phases.steps]]
+id             = "combat_damage"
+name           = "Combat Damage"
+order          = 4
+allow_actions  = false
+allow_triggers = true
+
+[[turn.phases.steps]]
+id             = "end_of_combat"
+name           = "End of Combat"
+order          = 5
+allow_actions  = true
+allow_triggers = true
+
+[[turn.phases]]
+id            = "main2"
+name          = "Main Phase 2"
+order         = 4
+allow_actions = true
+
+[[turn.phases.steps]]
+id             = "main2_actions"
+name           = "Main Actions 2"
+order          = 1
+allow_actions  = true
+allow_triggers = true
+
+[[turn.phases]]
+id            = "end"
+name          = "End Phase"
+order         = 5
+allow_actions = true
+
+[[turn.phases.steps]]
+id             = "end_step"
+name           = "End Step"
+order          = 1
+allow_actions  = true
+allow_triggers = true
+
+[[turn.phases.steps]]
+id             = "cleanup"
+name           = "Cleanup"
+order          = 2
+allow_actions  = false
+allow_triggers = true
+
+# -------------------------------------------
+# ACTIONS
+# -------------------------------------------
+# Define *types* of actions the game rules allow.
+# Cards & effects will reference these to say what they enable.
+
+# Example action: draw a card from deck to hand
+[[actions]]
+id          = "draw_card"
+name        = "Draw Card"
+description = "Move the top card of your deck to your hand."
+source_zones = ["deck"]
+target_zone  = "hand"
+speed        = "system"   # "system" = automatic, not player-initiated
+
+# Basic "play a card from hand to field"
+[[actions]]
+id          = "play_card"
+name        = "Play Card"
+description = "Play a card from hand to the field, paying its costs."
+source_zones = ["hand"]
+target_zone  = "field"
+speed        = "main"      # can be used in main phases
+requires_empty_stack = true
+
+# Quick-speed / instant-speed play
+[[actions]]
+id          = "play_quick"
+name        = "Play Quick Effect"
+description = "Play a quick card or ability at instant speed, using the stack."
+source_zones = ["hand", "field"]
+target_zone  = "stack"
+speed        = "quick"
+requires_empty_stack = false
+
+# Declare attack with a creature/unit
+[[actions]]
+id          = "declare_attack"
+name        = "Declare Attack"
+description = "Declare this unit as an attacker toward a valid target."
+source_zones = ["field"]
+target_zone  = "field"
+speed        = "combat"
+requires_empty_stack = true
+
+# -------------------------------------------
+# STACK RULES
+# -------------------------------------------
+[stack]
+enabled              = true
+resolve_order        = "last_in_first_out"  # typical stack
+auto_resolve_on_pass = true                 # both players pass with non-empty stack
+
+# -------------------------------------------
+# TRIGGERS & KEYWORDS (STRUCTURE ONLY)
+# -------------------------------------------
+# This section only defines the *shape* of triggers and keywords.
+# Individual cards will reference these ids.
+
+[[trigger_kinds]]
+id          = "on_enter_field"
+description = "Triggers when a card enters the field."
+
+[[trigger_kinds]]
+id          = "on_leave_field"
+description = "Triggers when a card leaves the field."
+
+[[trigger_kinds]]
+id          = "on_attack_declared"
+description = "Triggers when this unit is declared as an attacker."
+
+[[trigger_kinds]]
+id          = "on_damage_dealt_player"
+description = "Triggers when this source deals damage to a player."
+
+[[keywords]]
+id          = "quick"
+name        = "Quick"
+description = "May be played at quick speed (during opponent's turn or in response)."
+
+[[keywords]]
+id          = "summoning_sick"
+name        = "Summoning Sickness"
+description = "Cannot attack or use tap abilities the turn it enters play."
+
+[[keywords]]
+id          = "flying"
+name        = "Flying"
+description = "Can only be blocked by units with Flying or Reach."
+
+# -------------------------------------------
+# WIN / LOSS CONDITIONS
+# -------------------------------------------
+# The engine can treat these as "rules to evaluate each time state changes."
+
+[[win_conditions]]
+id          = "opponent_life_zero"
+description = "You win the game when all opposing players have 0 or less life."
+priority    = 1    # if multiple win conditions, lower number = checked first
+
+[[loss_conditions]]
+id          = "draw_from_empty_deck"
+description = "You lose the game if you are instructed to draw and your deck is empty."
+priority    = 1
+
+[[loss_conditions]]
+id          = "life_zero"
+description = "You lose the game if your life is 0 or less."
+priority    = 2
+
+# Example: alt-win condition slot
+[[win_conditions]]
+id          = "custom_alt_win"
+description = "Alternate win condition, defined by card effects."
+priority    = 10
