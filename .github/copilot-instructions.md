@@ -110,7 +110,7 @@ When player input is required:
 
 Assume rules may eventually be:
 - Native Rust modules
-- Rust-script (EXTREMELY LIKELY)
+- Rhai Embedded Scripting (EXTREMELY LIKELY)
 - WASM plugins
 
 Therefore:
