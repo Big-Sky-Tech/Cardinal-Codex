@@ -8,7 +8,7 @@ use crate::{
 /// Maps card IDs to their definitions for O(1) lookup during gameplay
 pub type CardRegistry = HashMap<u32, CardDef>;
 
-/// Build a card registry from card definitions with validation
+/// Build a card registry from card definitions without validation
 pub fn build_registry(cards: &[CardDef]) -> CardRegistry {
     let mut registry = HashMap::new();
     
@@ -36,12 +36,20 @@ pub fn build_validated_registry(cards: &[CardDef], ruleset: &Ruleset) -> Result<
         // Validate keywords - each keyword must exist in ruleset
         for keyword in &card_def.keywords {
             if !valid_keywords.contains(keyword) {
+                let mut sorted_keywords: Vec<_> = valid_keywords.iter().collect();
+                sorted_keywords.sort();
+                let keyword_list = if sorted_keywords.len() > 10 {
+                    format!("{:?} and {} more", &sorted_keywords[..10], sorted_keywords.len() - 10)
+                } else {
+                    format!("{}", sorted_keywords.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", "))
+                };
+                
                 return Err(format!(
-                    "Card '{}' (ID: {}) references undefined keyword '{}'. Valid keywords: {:?}",
+                    "Card '{}' (ID: {}) references undefined keyword '{}'. Valid keywords: {}",
                     card_def.name,
                     card_def.id,
                     keyword,
-                    valid_keywords
+                    keyword_list
                 ));
             }
         }
@@ -207,6 +215,15 @@ pub fn get_card_stat_i32(card_def: &CardDef, stat_key: &str) -> Option<i32> {
         .and_then(|s| s.parse::<i32>().ok())
 }
 
+/// Get a card's stat as an integer, returning Result for better error handling
+pub fn parse_card_stat_i32(card_def: &CardDef, stat_key: &str) -> Result<i32, String> {
+    match card_def.stats.get(stat_key) {
+        None => Err(format!("Stat '{}' not found on card '{}'", stat_key, card_def.name)),
+        Some(value) => value.parse::<i32>()
+            .map_err(|_| format!("Stat '{}' on card '{}' has invalid integer value: '{}'", stat_key, card_def.name, value))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -349,5 +366,35 @@ mod tests {
         assert_eq!(get_card_stat_i32(&card, "power"), Some(3));
         assert_eq!(get_card_stat_i32(&card, "toughness"), Some(4));
         assert_eq!(get_card_stat(&card, "missing"), None);
+    }
+    
+    #[test]
+    fn test_parse_card_stat_i32() {
+        let mut stats = std::collections::HashMap::new();
+        stats.insert("power".to_string(), "3".to_string());
+        stats.insert("invalid".to_string(), "not_a_number".to_string());
+        
+        let card = CardDef {
+            id: "1".to_string(),
+            name: "Test Creature".to_string(),
+            card_type: "creature".to_string(),
+            cost: None,
+            description: None,
+            abilities: vec![],
+            script_path: None,
+            keywords: vec![],
+            stats,
+        };
+        
+        // Valid stat
+        assert_eq!(parse_card_stat_i32(&card, "power"), Ok(3));
+        
+        // Missing stat
+        assert!(parse_card_stat_i32(&card, "missing").is_err());
+        assert!(parse_card_stat_i32(&card, "missing").unwrap_err().contains("not found"));
+        
+        // Invalid integer
+        assert!(parse_card_stat_i32(&card, "invalid").is_err());
+        assert!(parse_card_stat_i32(&card, "invalid").unwrap_err().contains("invalid integer value"));
     }
 }
