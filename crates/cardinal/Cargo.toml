@@ -12,3 +12,4 @@ toml = "0.9.8"
 rand = "0.8"
 rand_pcg = "0.3"
 colored = "2.0"
+rhai = { version = "1.20", features = ["sync", "only_i32", "no_float"], default-features = false }
