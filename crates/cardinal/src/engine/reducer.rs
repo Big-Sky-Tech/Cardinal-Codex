@@ -3,26 +3,85 @@ use crate::{
     ids::PlayerId,
     model::action::Action,
     model::event::Event,
+    model::command::Command,
     error::CardinalError,
 };
 
 pub fn apply(engine: &mut GameEngine, player: PlayerId, action: Action) -> Result<Vec<Event>, CardinalError> {
-    // Placeholder implementation
     match action {
         Action::PassPriority => {
             // Handle pass priority
             Ok(vec![Event::PriorityPassed { by: player }])
         }
         Action::Concede => {
-            // Handle concede
-            Ok(vec![Event::GameEnded { winner: None, reason: "Concede".to_string() }])
+            // Handle concede - determine winner as the other player (or None if no valid winner)
+            let winner = engine.state.players.iter()
+                .find(|p| p.id != player)
+                .map(|p| p.id);
+            
+            // Mark game as ended
+            engine.state.ended = Some(crate::state::gamestate::GameEnd {
+                winner,
+                reason: format!("Player {:?} conceded", player),
+            });
+            
+            Ok(vec![Event::GameEnded { 
+                winner, 
+                reason: format!("Player {:?} conceded", player),
+            }])
         }
-        Action::PlayCard { .. } => {
-            // Handle play card
-            Ok(vec![])
+        Action::PlayCard { card, from } => {
+            // Look up the play_card action definition to find target zone
+            let action_def = engine.rules.actions.iter()
+                .find(|a| a.id == "play_card")
+                .ok_or_else(|| CardinalError("play_card action not defined in rules".to_string()))?;
+            
+            let target_zone_str = action_def.target_zone.as_ref()
+                .ok_or_else(|| CardinalError("play_card action has no target_zone defined".to_string()))?;
+            
+            // Construct the target zone ID (if it's player-owned, append player index)
+            let target_zone_id = if let Some(zone_def) = engine.rules.zones.iter()
+                .find(|z| z.id == *target_zone_str)
+            {
+                match zone_def.owner_scope {
+                    crate::rules::schema::ZoneOwnerScope::Player => {
+                        format!("{}@{}", target_zone_str, player.0)
+                    }
+                    crate::rules::schema::ZoneOwnerScope::Shared => {
+                        target_zone_str.clone()
+                    }
+                }
+            } else {
+                return Err(CardinalError(format!("target zone '{}' not found in rules", target_zone_str)));
+            };
+            
+            let target_zone_box: Box<str> = target_zone_id.into_boxed_str();
+            let target_zone = crate::ids::ZoneId(Box::leak(target_zone_box));
+            
+            // Generate commands to move the card
+            let commands = vec![
+                Command::MoveCard { card, from, to: target_zone },
+            ];
+            
+            // Commit commands to state and collect events
+            let mut events = crate::engine::events::commit_commands(&mut engine.state, &commands);
+            
+            // Add the CardPlayed event
+            events.push(Event::CardPlayed { player, card });
+            
+            Ok(events)
         }
-        Action::ChooseTarget { .. } => {
-            // Handle choose target
+        Action::ChooseTarget { choice_id: _, target: _ } => {
+            // Clear the pending choice and emit appropriate event
+            // For now, just remove the choice without applying effects
+            // (effect handling will be part of the trigger system)
+            engine.state.pending_choice = None;
+            
+            // In a full implementation, this would:
+            // 1. Validate the target against the choice's allowed targets
+            // 2. Generate commands based on the effect
+            // 3. Apply those commands
+            
             Ok(vec![])
         }
     }
