@@ -42,12 +42,57 @@ impl GameEngine {
         self.validate_action(player, &action)?;
 
         // 2) apply (reducer)
-        let events = crate::engine::reducer::apply(self, player, action)?;
+        let mut events = crate::engine::reducer::apply(self, player, action)?;
 
         // 3) post-step checks (win/loss, auto-resolve stack, advance phase)
-        // TODO
+        
+        // Check for win/loss conditions
+        self.check_game_end(&mut events);
+        
+        // Auto-resolve stack if it has items and no pending choice
+        self.auto_resolve_stack(&mut events);
+        
+        // Advance to next phase/step if appropriate
+        self.advance_phase_if_ready(&mut events);
 
         Ok(StepResult { events })
+    }
+
+    fn check_game_end(&mut self, events: &mut Vec<Event>) {
+        // Check if any player has <= 0 life (loses)
+        let losers: Vec<PlayerId> = self.state.players.iter()
+            .filter(|p| p.life <= 0)
+            .map(|p| p.id)
+            .collect();
+
+        if !losers.is_empty() {
+            // Determine winner: last player with > 0 life
+            let winner = self.state.players.iter()
+                .find(|p| p.life > 0)
+                .map(|p| p.id);
+            
+            self.state.ended = Some(crate::state::gamestate::GameEnd {
+                winner,
+                reason: "Life total reached 0".to_string(),
+            });
+            events.push(Event::GameEnded { winner, reason: "Life total reached 0".to_string() });
+        }
+    }
+
+    fn auto_resolve_stack(&mut self, events: &mut Vec<Event>) {
+        // If the stack has items and there's no pending choice, resolve the top item
+        while !self.state.stack.is_empty() && self.state.pending_choice.is_none() {
+            if let Some(item) = self.state.stack.pop() {
+                let item_id = item.id;
+                // Future: emit item's effects as commands
+                events.push(Event::StackResolved { item_id });
+            }
+        }
+    }
+
+    fn advance_phase_if_ready(&mut self, _events: &mut Vec<Event>) {
+        // TODO: implement phase/step progression logic
+        // This should advance the turn phase when appropriate
     }
 
     fn validate_action(&self, player: PlayerId, action: &Action) -> Result<(), LegalityError> {

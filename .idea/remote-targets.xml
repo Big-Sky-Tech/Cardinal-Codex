@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="RemoteTargetsManager">
+    <targets>
+      <target name="WSL - Ubuntu" type="wsl" uuid="3cd248f9-218d-4b9d-b7a0-8eecce197c3a">
+        <config>
+          <option name="distributionMsId" value="Ubuntu" />
+          <option name="projectRootOnTarget" value="{exitCode=0, timeout=false, cancelled=false, stdout=/tmp/tmp.ZtTrxVZJNY&#13;&#10;, stderr=}/Cardinal-Codex" />
+        </config>
+        <ContributedStateBase type="RsLanguageRuntime">
+          <config>
+            <option name="cargoPath" value="/home/dayton/.cargo/bin/cargo" />
+            <option name="cargoVersion" value="1.92.0 (344c4567c 2025-10-21)" />
+            <option name="rustcPath" value="/home/dayton/.cargo/bin/rustc" />
+            <option name="rustcVersion" value="1.92.0 (ded5c06cf 2025-12-08)" />
+          </config>
+        </ContributedStateBase>
+      </target>
+    </targets>
+  </component>
+</project>
