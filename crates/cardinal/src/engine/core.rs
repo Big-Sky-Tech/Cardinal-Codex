@@ -37,6 +37,20 @@ impl GameEngine {
         vec![Action::PassPriority]
     }
 
+    /// Generate the next unique stack item ID
+    pub fn next_stack_id(&mut self) -> u32 {
+        let id = self.next_stack_id;
+        self.next_stack_id += 1;
+        id
+    }
+
+    /// Generate the next unique choice ID
+    pub fn next_choice_id(&mut self) -> u32 {
+        let id = self.next_choice_id;
+        self.next_choice_id += 1;
+        id
+    }
+
     pub fn apply_action(&mut self, player: PlayerId, action: Action) -> Result<StepResult, EngineError> {
         // 1) validate
         self.validate_action(player, &action)?;

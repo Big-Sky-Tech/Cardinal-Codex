@@ -7,6 +7,8 @@ use crate::{
     error::CardinalError,
 };
 
+/// Apply an action to the game state, returning events that occurred.
+/// This includes: direct action effects, trigger evaluation, and command application.
 pub fn apply(engine: &mut GameEngine, player: PlayerId, action: Action) -> Result<Vec<Event>, CardinalError> {
     match action {
         Action::PassPriority => {
@@ -84,7 +86,25 @@ pub fn apply(engine: &mut GameEngine, player: PlayerId, action: Action) -> Resul
             let mut events = crate::engine::events::commit_commands(&mut engine.state, &commands);
             
             // Add the CardPlayed event
-            events.push(Event::CardPlayed { player, card });
+            let card_played_event = Event::CardPlayed { player, card };
+            events.push(card_played_event.clone());
+            
+            // Evaluate triggers from CardPlayed event
+            let trigger_commands = crate::engine::triggers::evaluate_triggers(engine, &card_played_event);
+            let trigger_events = crate::engine::events::commit_commands(&mut engine.state, &trigger_commands);
+            events.extend(trigger_events);
+            
+            // Evaluate triggers from CardMoved events (extract them first to avoid borrow issues)
+            let card_moved_events: Vec<Event> = events.iter()
+                .filter(|e| matches!(e, Event::CardMoved { .. }))
+                .cloned()
+                .collect();
+            
+            for event in card_moved_events {
+                let trigger_commands = crate::engine::triggers::evaluate_triggers(engine, &event);
+                let trigger_events = crate::engine::events::commit_commands(&mut engine.state, &trigger_commands);
+                events.extend(trigger_events);
+            }
             
             Ok(events)
         }

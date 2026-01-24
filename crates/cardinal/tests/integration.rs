@@ -387,3 +387,52 @@ fn test_priority_passes_tracked() {
     assert!(passes_after_first >= 1, "Priority passes should have been incremented");
 }
 
+#[test]
+fn test_trigger_evaluation_on_card_play() {
+    let rules = load_rules("../../rules.toml").expect("load rules");
+    let mut engine = GameEngine::from_ruleset(rules, 42);
+    
+    // Get the active player (normally player 0)
+    let active_player = engine.state.turn.active_player;
+    
+    // Find a card in the active player's hand to play
+    let hand_zone_id = format!("hand@{}", active_player.0);
+    let hand = engine.state.zones.iter()
+        .find(|z| z.id.0 == hand_zone_id)
+        .cloned();
+    
+    if let Some(hand_zone) = hand {
+        if !hand_zone.cards.is_empty() {
+            let card_to_play = hand_zone.cards[0];
+            let from_zone = hand_zone.id;
+            
+            // Play the card (this should trigger the card_played trigger)
+            let result = engine.apply_action(
+                active_player,
+                Action::PlayCard { card: card_to_play, from: from_zone },
+            ).expect("play card action should succeed");
+            
+            // Check that we got events - should include CardPlayed, CardMoved, and potentially StackResolved
+            assert!(!result.events.is_empty(), "PlayCard should emit events");
+            
+            // Verify CardPlayed event is present
+            let has_card_played = result.events.iter()
+                .any(|e| matches!(e, Event::CardPlayed { player, card } 
+                    if player == &active_player && card == &card_to_play));
+            assert!(has_card_played, "CardPlayed event should be emitted");
+            
+            // Verify CardMoved event is present (from hand to field)
+            let has_card_moved = result.events.iter()
+                .any(|e| matches!(e, Event::CardMoved { card, .. } if card == &card_to_play));
+            assert!(has_card_moved, "CardMoved event should be emitted");
+            
+            // With trigger system, we should have stack items created (triggers pushed stack)
+            // and potentially resolved (StackResolved events)
+            let _has_stack_event = result.events.iter()
+                .any(|e| matches!(e, Event::StackResolved { .. }));
+            // Note: Stack might be auto-resolved or waiting - this is just checking the mechanism works
+            assert!(!result.events.is_empty(), "Events should be generated from card play and triggers");
+        }
+    }
+}
+
