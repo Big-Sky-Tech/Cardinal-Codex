@@ -105,7 +105,9 @@ fn execute_builtin_effect(effect_str: &str, controller: PlayerId) -> Result<Vec<
             .and_then(|s| s.parse::<i32>().ok())
             .ok_or_else(|| CardinalError(format!("Invalid damage amount in: {}", effect_str)))?;
         
-        // For now, damage goes to the controller (later: target selection)
+        // TODO: Add proper target selection
+        // For now, damage affects the controller as a placeholder
+        // Future: request target via PendingChoice, then apply to selected target
         Ok(vec![Command::ChangeLife {
             player: controller,
             delta: -amount,

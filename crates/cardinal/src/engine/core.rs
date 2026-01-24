@@ -36,16 +36,10 @@ impl GameEngine {
         let cards = crate::engine::cards::build_registry(&rules.cards);
         let scripting = RhaiEngine::new();
         
-        // Load scripts for cards that have script_path defined
-        // For now, we'll skip actual file loading (that would require IO)
-        // Scripts will be registered manually or via a separate initialization step
-        // This maintains determinism in the core engine
-        for card_def in &rules.cards {
-            if let Some(_script_path) = &card_def.script_path {
-                // TODO: Load script from file in a higher-level initialization
-                // For now, scripted cards are recognized but scripts must be registered separately
-            }
-        }
+        // Note: Script loading from files is intentionally NOT done here to maintain
+        // determinism in the core engine. Scripts should be loaded via a separate
+        // initialization step at a higher level (e.g., in cardinal-cli or a web frontend).
+        // This keeps file I/O out of the engine core.
         
         Self { rules, state: initial, cards, scripting, seed, next_choice_id: 1, next_stack_id: 1 }
     }
