@@ -1,0 +1,71 @@
+# Example Card Definitions for Hybrid System
+#
+# This file demonstrates both TOML-based builtin effects and Rhai-scripted cards.
+
+# TOML-Based Builtin Card (no script)
+[[cards]]
+id = "1"
+name = "Simple Shock"
+card_type = "spell"
+cost = "1"
+description = "Deal 2 damage to target player"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "damage"
+[cards.abilities.params]
+amount = "2"
+
+# TOML-Based Builtin Card with gain_life
+[[cards]]
+id = "2"
+name = "Healing Salve"
+card_type = "spell"
+cost = "1"
+description = "Gain 3 life"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "gain_life"
+[cards.abilities.params]
+amount = "3"
+
+# Rhai-Scripted Card
+[[cards]]
+id = "10"
+name = "Lightning Bolt"
+card_type = "spell"
+cost = "1"
+description = "Deal 3 damage to target player (scripted)"
+script_path = "examples/scripts/lightning_bolt.rhai"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "script:lightning_bolt"
+
+# Rhai-Scripted Card with Multiple Effects
+[[cards]]
+id = "11"
+name = "Dark Ritual"
+card_type = "spell"
+cost = "2"
+description = "Deal 2 damage and gain 3 life (scripted)"
+script_path = "examples/scripts/dark_ritual.rhai"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "script:dark_ritual"
+
+# Creature with builtin ETB effect
+[[cards]]
+id = "20"
+name = "Solemn Simulacrum"
+card_type = "creature"
+cost = "3"
+description = "When this enters the battlefield, draw a card"
+
+[[cards.abilities]]
+trigger = "etb"
+effect = "draw"
+[cards.abilities.params]
+amount = "1"

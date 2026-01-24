@@ -13,9 +13,10 @@ A **headless, deterministic game engine** for trading card games (TCGs). Define 
 
 ✅ **Fully Deterministic** — Same seed + actions = identical outcome  
 ✅ **Data-Driven Rules** — Define cards in TOML (no code changes)  
+✅ **Hybrid Card System** — TOML builtins + Rhai scripts for flexibility  
 ✅ **Headless** — Embed in any interface (web, mobile, terminal, AI)  
 ✅ **Event-Based** — Complete game log for replays and debugging  
-✅ **Well-Tested** — 19 integration tests covering core systems  
+✅ **Well-Tested** — 31 tests covering core systems and scripting  
 ✅ **Clean Architecture** — Clear separation of concerns  
 
 ## Getting Started
@@ -91,6 +92,7 @@ One struct holds all truth. Everything else is derived from it.
 |----------|----------|---------|
 | [README_DETAILED.md](README_DETAILED.md) | Everyone | Overview, concepts, quick start |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Developers | Design principles, game flow, data structures |
+| [SCRIPTING_GUIDE.md](SCRIPTING_GUIDE.md) | Card designers | Rhai scripting for custom card effects |
 | [crates/cardinal/README.md](crates/cardinal/README.md) | API users | Usage guide, integration examples, concepts |
 | [crates/cardinal-cli/README.md](crates/cardinal-cli/README.md) | Players | Terminal game guide, controls, examples |
 | [crates/cardinal/explanation.md](crates/cardinal/explanation.md) | Code explorers | Design patterns, module layout, architecture |
@@ -158,24 +160,27 @@ All tests passing:
 cargo test
 ```
 
-**19 integration tests** covering:
+**31 tests** covering:
 - Game initialization
 - Turn progression
 - Action validation
 - Card abilities & triggers
+- Builtin effect execution
+- Scripted effect execution
 - State consistency
 - Determinism
 
 ## Configuration
 
 Edit [rules.toml](rules.toml) to:
-- Define new cards
+- Define new cards (TOML builtin effects)
+- Add scripted cards (Rhai scripts in `examples/scripts/`)
 - Change mana costs
 - Add card abilities
 - Customize phases
 - Change game constants
 
-No code changes needed. Cardinal is 100% data-driven.
+No code changes needed. Cardinal supports both TOML-only cards and Rhai-scripted cards. See [SCRIPTING_GUIDE.md](SCRIPTING_GUIDE.md) for details.
 
 ## Next Steps
 
@@ -191,8 +196,9 @@ Cardinal is a **clean, deterministic, reusable game engine**:
 
 - **One engine** for any turn-based TCG
 - **Many interfaces** (terminal, web, mobile, AI)
+- **Hybrid card system** (TOML builtins + Rhai scripts)
 - **Data-driven rules** (TOML configuration)
 - **Full determinism** (perfect replays)
-- **Well-tested** (19 integration tests)
+- **Well-tested** (31 tests passing)
 
 It's designed to be embedded, extended, and understood.

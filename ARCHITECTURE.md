@@ -481,9 +481,172 @@ Each layer has tests:
 
 ---
 
+## Hybrid Card System
+
+Cardinal supports a **flexible, two-tier effect system** that allows cards to be defined using either simple TOML declarations or full Rhai scripts.
+
+### Design Philosophy
+
+The hybrid system follows these principles:
+
+1. **Simple things should be simple** — Common effects (damage, life gain, draw) use TOML builtins
+2. **Complex things should be possible** — Unique mechanics use Rhai scripts
+3. **Backward compatible** — Existing TOML-only cards continue to work
+4. **Deterministic** — Scripts run in a sandboxed, deterministic environment
+5. **No direct state mutation** — Scripts return Commands, never mutate GameState directly
+
+### Effect Types
+
+#### 1. Builtin Effects (TOML)
+Defined directly in card TOML with parameters:
+
+```toml
+[[cards.abilities]]
+trigger = "on_play"
+effect = "damage"
+[cards.abilities.params]
+amount = "2"
+```
+
+**Builtin effects available:**
+- `damage` — Deal damage to a player
+- `draw` — Draw cards
+- `gain_life` — Gain life points
+- `pump` — Modify creature stats
+
+#### 2. Scripted Effects (Rhai)
+Defined in separate `.rhai` script files for complex logic:
+
+```toml
+[[cards]]
+script_path = "scripts/lightning_bolt.rhai"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "script:lightning_bolt"
+```
+
+**Script file (`lightning_bolt.rhai`):**
+```rhai
+fn execute_ability() {
+    deal_damage(1, 3)
+}
+```
+
+### Execution Flow
+
+1. **Card Definition**: Load cards from TOML, optionally with `script_path`
+2. **Engine Initialization**: Compile all scripts into RhaiEngine
+3. **Trigger Evaluation**: When an event occurs, check which abilities trigger
+4. **Effect Generation**: Convert effects into Commands via `effect_to_command()`
+   - Builtin effects → parsed into EffectRef::Builtin
+   - Scripted effects → marked as EffectRef::Scripted
+5. **Stack Push**: Push effect Command onto the stack
+6. **Stack Resolution**: When stack resolves, execute effect:
+   - Builtin → parse effect string, generate Commands
+   - Scripted → call Rhai script, convert results to Commands
+7. **Command Application**: Apply resulting Commands to GameState
+8. **Event Emission**: Emit events describing state changes
+
+### Safety and Determinism
+
+**Rhai Configuration for Cardinal:**
+- `sync` feature enabled — thread-safe execution
+- `only_i32` feature — integers only, no floating point
+- `no_float` — eliminates non-deterministic float operations
+- Operation limits — prevents infinite loops (10,000 ops max)
+- Recursion limits — prevents stack overflow (32 levels max)
+- No I/O, no threading, no system time access
+
+**Sandboxing:**
+Scripts can only:
+- Call registered helper functions (`deal_damage`, `gain_life`, etc.)
+- Access provided context variables (`controller`, `source_card`)
+- Return effect descriptions as data structures
+
+Scripts cannot:
+- Mutate GameState directly
+- Access files or network
+- Create non-deterministic values
+- Escape the sandbox
+
+### Integration Points
+
+**Module: `engine/scripting.rs`**
+- `RhaiEngine` — wrapper around Rhai with Cardinal-specific configuration
+- Helper function registration — exposes safe API to scripts
+- Script compilation and execution
+
+**Module: `engine/effect_executor.rs`**
+- `execute_effect()` — handles both builtin and scripted effects
+- `execute_builtin_effect()` — parses effect strings
+- `execute_scripted_effect()` — calls Rhai and converts results
+
+**Module: `engine/cards.rs`**
+- `effect_to_command()` — recognizes "script:" prefix for scripted effects
+- Generates EffectRef::Scripted for scripts, EffectRef::Builtin for builtins
+
+**Module: `rules/schema.rs`**
+- `CardDef.script_path` — optional field pointing to Rhai script
+- Backward compatible — omit for builtin-only cards
+
+### Example Card Comparison
+
+**Builtin Approach (Simple):**
+```toml
+[[cards]]
+id = "1"
+name = "Shock"
+card_type = "spell"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "damage"
+[cards.abilities.params]
+amount = "2"
+```
+
+**Scripted Approach (Flexible):**
+```toml
+[[cards]]
+id = "10"
+name = "Life Drain"
+card_type = "spell"
+script_path = "scripts/life_drain.rhai"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "script:life_drain"
+```
+
+```rhai
+// scripts/life_drain.rhai
+fn execute_ability() {
+    [
+        deal_damage(1, 3),
+        gain_life(0, 3)
+    ]
+}
+```
+
+### Future Enhancements
+
+Planned additions to the scripting system:
+- **Game state queries** — Read player life, card counts, zone contents
+- **Target selection** — Request player input within scripts
+- **Conditional effects** — If/else based on game state
+- **Persistent effects** — Effects lasting multiple turns
+- **Custom triggers** — Define new trigger types in scripts
+
+For detailed scripting documentation, see `SCRIPTING_GUIDE.md`.
+
+---
+
 ## Summary
 
 Cardinal is a **game engine in the truest sense**: it validates moves, applies rules, and emits a stream of events describing what happened. It stays out of the UI, stays deterministic, and keeps game state as a single source of truth.
 
 The key insight: **By separating the engine from the UI, we get reusability. By enforcing determinism, we get fairness. By keeping state centralized, we get clarity.**
+
+The hybrid card system extends this philosophy: **By supporting both TOML and scripts, we get simplicity where possible and power where needed — all while maintaining determinism and safety.**
 
