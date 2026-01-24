@@ -6,6 +6,7 @@ pub mod rules;
 pub mod state;
 pub mod engine;
 pub mod util;
+pub mod display;
 
 pub use engine::core::{GameEngine, StepResult};
 pub use engine::init::initialize_game;
@@ -17,6 +18,7 @@ pub use rules::schema::Ruleset;
 pub use rules::RulesModule;
 pub use state::gamestate::GameState;
 pub use util::rng::GameRng;
+pub use display::{GameDisplay, LogEntry};
 
 use std::fs;
 use std::path::Path;
