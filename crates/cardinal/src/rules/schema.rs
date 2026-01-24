@@ -13,6 +13,8 @@ pub struct Ruleset {
     pub keywords: Vec<Keyword>,
     pub win_conditions: Vec<WinCondition>,
     pub loss_conditions: Vec<LossCondition>,
+    #[serde(default)]
+    pub cards: Vec<CardDef>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -141,4 +143,34 @@ pub struct LossCondition {
     pub id: String,
     pub description: String,
     pub priority: usize,
+}
+
+/// Card definition: metadata and abilities for a playable card
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardDef {
+    /// Unique card identifier (can be string or number)
+    pub id: String,
+    /// Card name for display
+    pub name: String,
+    /// Card type (e.g., "creature", "spell", "enchantment")
+    pub card_type: String,
+    /// Cost to play (could be mana, resources, etc)
+    pub cost: Option<String>,
+    /// Card text / description
+    pub description: Option<String>,
+    /// Abilities this card has (triggered effects)
+    #[serde(default)]
+    pub abilities: Vec<CardAbility>,
+}
+
+/// An ability on a card that can be triggered
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardAbility {
+    /// What triggers this ability (e.g., "etb", "on_play", "on_damage")
+    pub trigger: String,
+    /// What effect to execute (e.g., "damage_2", "draw_1", "pump_1_1")
+    pub effect: String,
+    /// Optional parameters for the effect (e.g., amount, target)
+    #[serde(default)]
+    pub params: std::collections::HashMap<String, String>,
 }

@@ -1,55 +1,51 @@
 use crate::{
     model::event::Event,
-    model::command::{Command, StackItem, EffectRef},
+    model::command::Command,
     engine::core::GameEngine,
 };
 
 /// Evaluate which triggers should fire in response to an event.
 /// Returns commands to execute (typically PushStack for triggered effects).
+/// This uses card definitions to determine which abilities should fire.
 pub fn evaluate_triggers(
     engine: &mut GameEngine,
     event: &Event,
 ) -> Vec<Command> {
     let mut commands = Vec::new();
+    let mut next_stack_id = engine.next_stack_id();
 
     match event {
-        // CardMoved events can trigger "enters the battlefield" effects
+        // CardMoved events can trigger "enters the battlefield" effects (ETB triggers)
         Event::CardMoved { card, to, .. } => {
-            // Find the card in the destination zone to see who controls it
-            if let Some(zone) = engine.state.zones.iter().find(|z| z.id == *to) {
-                if zone.cards.contains(card) {
-                    // Determine the controller (zone owner typically)
+            // Check if moving TO the field zone indicates "enters"
+            if to.0.starts_with("field") {
+                // Find the controller (zone owner)
+                if let Some(zone) = engine.state.zones.iter().find(|z| z.id == *to) {
                     if let Some(controller) = zone.owner {
-                        // Check if moving TO the field zone indicates "enters"
-                        if to.0.starts_with("field") {
-                            // Generate a generic "enters the battlefield" trigger
-                            // In a real implementation, we'd look up the card's specific triggers
-                            let trigger_effect = StackItem {
-                                id: engine.next_stack_id(),
-                                source: Some(*card),
-                                controller,
-                                effect: EffectRef::Builtin("etb"),
-                            };
-                            commands.push(Command::PushStack {
-                                item: trigger_effect,
-                            });
-                        }
+                        // Look up card's abilities and fire matching triggers
+                        let ability_commands = crate::engine::cards::generate_ability_commands(
+                            *card,
+                            "etb",
+                            controller,
+                            &engine.cards,
+                            &mut next_stack_id,
+                        );
+                        commands.extend(ability_commands);
                     }
                 }
             }
         }
-        // CardPlayed events can trigger other card abilities
+        // CardPlayed events can trigger on_play card abilities
         Event::CardPlayed { player, card } => {
-            // Generate a generic "card played" trigger
-            let trigger_effect = StackItem {
-                id: engine.next_stack_id(),
-                source: Some(*card),
-                controller: *player,
-                effect: EffectRef::Builtin("card_played"),
-            };
-            commands.push(Command::PushStack {
-                item: trigger_effect,
-            });
+            // Look up card's abilities and fire matching triggers
+            let ability_commands = crate::engine::cards::generate_ability_commands(
+                *card,
+                "on_play",
+                *player,
+                &engine.cards,
+                &mut next_stack_id,
+            );
+            commands.extend(ability_commands);
         }
         _ => {
             // Other events don't trigger anything yet

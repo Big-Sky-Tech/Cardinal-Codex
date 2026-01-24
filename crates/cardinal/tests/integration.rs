@@ -622,3 +622,90 @@ fn test_game_initialization_preserves_priority() {
     );
 }
 
+#[test]
+fn test_card_ability_etb_trigger() {
+    let rules = load_rules("../../rules.toml").expect("load rules");
+    let mut engine = GameEngine::from_ruleset(rules.clone(), 42);
+    
+    // Set engine to a phase that allows actions
+    let main_phase = rules.turn.phases.iter()
+        .find(|p| p.allow_actions && p.id.contains("main"));
+    
+    if let Some(phase) = main_phase {
+        let phase_box: Box<str> = phase.id.clone().into_boxed_str();
+        let phase_static: &'static str = Box::leak(phase_box);
+        engine.state.turn.phase = cardinal::ids::PhaseId(phase_static);
+        
+        if let Some(step) = phase.steps.first() {
+            let step_box: Box<str> = step.id.clone().into_boxed_str();
+            let step_static: &'static str = Box::leak(step_box);
+            engine.state.turn.step = cardinal::ids::StepId(step_static);
+        }
+    }
+    
+    // Use the Goblin Scout card (id: 1) which has an ETB damage ability
+    let goblin_id = cardinal::ids::CardId(1);
+    
+    let active_player = engine.state.turn.active_player;
+    
+    // Find hand zone for active player
+    let hand_zone = engine.state.zones.iter()
+        .find(|z| z.owner == Some(active_player) && z.id.0.starts_with("hand"))
+        .map(|z| z.id.clone());
+    
+    if let Some(hand) = hand_zone {
+        // Add the goblin to hand
+        engine.state.zones.iter_mut()
+            .find(|z| z.id == hand)
+            .map(|z| z.cards.push(goblin_id));
+        
+        // Play the goblin - this should trigger its ETB ability
+        let result = engine.apply_action(
+            active_player,
+            Action::PlayCard { card: goblin_id, from: hand },
+        ).expect("play card should succeed");
+        
+        // Check that we got events including trigger effects
+        assert!(!result.events.is_empty(), "Playing card should emit events");
+        
+        // Verify CardPlayed event
+        let has_card_played = result.events.iter()
+            .any(|e| matches!(e, Event::CardPlayed { player, card } 
+                if player == &active_player && card == &goblin_id));
+        assert!(has_card_played, "CardPlayed event should be emitted");
+        
+        // Verify StackResolved event (trigger was auto-resolved)
+        let has_stack_resolved = result.events.iter()
+            .any(|e| matches!(e, Event::StackResolved { .. }));
+        assert!(has_stack_resolved, "Trigger should create and resolve stack items");
+    }
+}
+
+#[test]
+fn test_card_registry_lookup() {
+    let rules = load_rules("../../rules.toml").expect("load rules");
+    let engine = GameEngine::from_ruleset(rules, 42);
+    
+    // Verify that card registry was built correctly
+    assert!(!engine.cards.is_empty(), "Card registry should have cards");
+    
+    // Try to look up the goblin
+    let goblin_id = cardinal::ids::CardId(1);
+    let goblin_def = cardinal::engine::cards::get_card(&engine.cards, goblin_id);
+    
+    if let Some(card) = goblin_def {
+        assert_eq!(card.name, "Goblin Scout", "Card name should match");
+        assert_eq!(card.card_type, "creature", "Card type should match");
+        assert!(!card.abilities.is_empty(), "Card should have abilities");
+        
+        // Check the ability
+        if let Some(ability) = card.abilities.first() {
+            assert_eq!(ability.trigger, "etb", "Ability should be ETB trigger");
+            assert_eq!(ability.effect, "damage", "Ability should be damage effect");
+            assert_eq!(ability.params.get("amount").map(|s| s.as_str()), Some("1"), "Damage amount should be 1");
+        }
+    } else {
+        panic!("Goblin Scout card not found in registry");
+    }
+}
+

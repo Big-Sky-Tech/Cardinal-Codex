@@ -10,6 +10,7 @@ use crate::{
 pub struct GameEngine {
     pub rules: Ruleset,
     pub state: GameState,
+    pub cards: crate::engine::cards::CardRegistry,
     seed: u64,
     next_choice_id: u32,
     next_stack_id: u32,
@@ -21,17 +22,19 @@ pub struct StepResult {
 
 impl GameEngine {
     pub fn new(rules: Ruleset, seed: u64, initial_state: GameState) -> Self {
-        Self { rules, state: initial_state, seed, next_choice_id: 1, next_stack_id: 1 }
+        let cards = crate::engine::cards::build_registry(&rules.cards);
+        Self { rules, state: initial_state, cards, seed, next_choice_id: 1, next_stack_id: 1 }
     }
 
     /// Build a GameEngine directly from a `Ruleset`. This will create a minimal GameState
     /// via `GameState::from_ruleset`.
     pub fn from_ruleset(rules: Ruleset, seed: u64) -> Self {
         let initial = GameState::from_ruleset(&rules);
-        Self { rules, state: initial, seed, next_choice_id: 1, next_stack_id: 1 }
+        let cards = crate::engine::cards::build_registry(&rules.cards);
+        Self { rules, state: initial, cards, seed, next_choice_id: 1, next_stack_id: 1 }
     }
 
-    pub fn legal_actions(&self, player: PlayerId) -> Vec<Action> {
+    pub fn legal_actions(&self, _player: PlayerId) -> Vec<Action> {
         // Start simple: implement legality later in engine/legality.rs
         // Return only actions that make sense (PassPriority, PlayCard if allowed, etc).
         vec![Action::PassPriority]
