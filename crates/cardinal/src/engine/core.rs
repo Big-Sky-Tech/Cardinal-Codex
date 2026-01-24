@@ -91,18 +91,28 @@ impl GameEngine {
     }
 
     fn advance_phase_if_ready(&mut self, events: &mut Vec<Event>) {
-        // Advance to the next phase/step if:
-        // 1. Stack is empty
-        // 2. No pending choices
-        // 3. All players have passed priority (simplified: just auto-advance)
-        //
-        // In a full implementation, this would handle priority passing and
-        // multi-player windows. For now, we assume single-player or auto-advance.
-
+        // Phase advancement logic with priority system:
+        // 1. Only advance if stack is empty and no pending choices
+        // 2. Check if all players have passed priority
+        // 3. If all passed: resolve stack items, reset passes, advance phase
+        // 4. If not all passed: don't advance yet, wait for more passes
+        
         if !self.state.stack.is_empty() || self.state.pending_choice.is_some() {
             // Can't advance while stack has items or choice is pending
             return;
         }
+
+        let num_players = self.state.players.len() as u32;
+        
+        // Check if all players have passed priority
+        if self.state.turn.priority_passes < num_players {
+            // Not all players have passed yet, don't advance
+            return;
+        }
+        
+        // All players have passed! Reset priority counter and give priority to active player
+        self.state.turn.priority_passes = 0;
+        self.state.turn.priority_player = self.state.turn.active_player;
 
         // Find current phase index
         let current_phase_idx = self.rules.turn.phases.iter()
@@ -167,9 +177,8 @@ impl GameEngine {
 
             self.state.turn.number += 1;
 
-            // Rotate active player
-            let num_players = self.state.players.len() as u8;
-            let next_player_idx = (self.state.turn.active_player.0 + 1) % num_players;
+            // Rotate active player and give them priority
+            let next_player_idx = (self.state.turn.active_player.0 + 1) % num_players as u8;
             self.state.turn.active_player = crate::ids::PlayerId(next_player_idx);
             self.state.turn.priority_player = self.state.turn.active_player;
 

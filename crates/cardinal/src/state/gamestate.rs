@@ -19,6 +19,7 @@ pub struct TurnState {
     pub priority_player: PlayerId,
     pub phase: PhaseId,
     pub step: StepId,
+    pub priority_passes: u32,  // Number of consecutive players who have passed priority
 }
 
 #[derive(Debug, Clone)]
@@ -87,7 +88,7 @@ impl GameState {
         };
 
         GameState {
-            turn: TurnState { number: 1, active_player: PlayerId(0), priority_player: PlayerId(0), phase: phase_id, step: step_id },
+            turn: TurnState { number: 1, active_player: PlayerId(0), priority_player: PlayerId(0), phase: phase_id, step: step_id, priority_passes: 0 },
             players,
             zones,
             stack: Vec::new(),

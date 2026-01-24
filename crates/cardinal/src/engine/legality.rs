@@ -7,7 +7,8 @@ use crate::{
 
 /// Validate that an action is legal in the current game state.
 /// Checks:
-/// - Only the active player can take most actions
+/// - Only the priority player can pass priority
+/// - Only the active player can take other actions
 /// - The current phase allows actions
 /// - Stack requirements are met (if action requires empty stack)
 /// - Zone ownership and card ownership are valid
@@ -17,29 +18,36 @@ pub fn validate(engine: &GameEngine, player: PlayerId, action: &Action) -> Resul
         return Err(CardinalError("Game has ended".to_string()));
     }
 
-    // Only active player can take most actions (PassPriority and Concede are always allowed)
+    // Check action-specific permissions
     match action {
-        Action::PassPriority | Action::Concede => {
-            // Always allowed
+        Action::PassPriority => {
+            // Only the priority player can pass priority
+            if player != engine.state.turn.priority_player {
+                return Err(CardinalError(format!(
+                    "Only priority player ({:?}) can pass priority",
+                    engine.state.turn.priority_player
+                )));
+            }
+            Ok(())
         }
-        _ => {
+        Action::Concede => {
+            // Concede is always allowed
+            Ok(())
+        }
+        Action::PlayCard { card, from } => {
+            // Active player only
             if player != engine.state.turn.active_player {
                 return Err(CardinalError(format!(
                     "Only active player ({:?}) can take this action",
                     engine.state.turn.active_player
                 )));
             }
-        }
-    }
 
-    // Check phase permissions
-    let current_phase = engine.rules.turn.phases.iter()
-        .find(|p| p.id.as_str() == engine.state.turn.phase.0)
-        .ok_or_else(|| CardinalError("Invalid phase".to_string()))?;
+            // Check phase permissions
+            let current_phase = engine.rules.turn.phases.iter()
+                .find(|p| p.id.as_str() == engine.state.turn.phase.0)
+                .ok_or_else(|| CardinalError("Invalid phase".to_string()))?;
 
-    match action {
-        Action::PassPriority | Action::Concede => Ok(()),
-        Action::PlayCard { card, from } => {
             // PlayCard requires the phase to allow actions
             if !current_phase.allow_actions {
                 return Err(CardinalError(format!(

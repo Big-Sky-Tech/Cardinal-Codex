@@ -10,7 +10,24 @@ use crate::{
 pub fn apply(engine: &mut GameEngine, player: PlayerId, action: Action) -> Result<Vec<Event>, CardinalError> {
     match action {
         Action::PassPriority => {
-            // Handle pass priority
+            // Only the priority player can pass priority
+            if player != engine.state.turn.priority_player {
+                return Err(CardinalError("Only the priority player can pass priority".to_string()));
+            }
+            
+            // Track this player's pass
+            engine.state.turn.priority_passes += 1;
+            
+            // Check if all players have passed (priority_passes == num_players means full round)
+            let num_players = engine.state.players.len() as u32;
+            let all_passed = engine.state.turn.priority_passes >= num_players;
+            
+            // Rotate priority to next player if not all have passed
+            if !all_passed {
+                let next_priority_idx = (player.0 + 1) % num_players as u8;
+                engine.state.turn.priority_player = crate::ids::PlayerId(next_priority_idx);
+            }
+            
             Ok(vec![Event::PriorityPassed { by: player }])
         }
         Action::Concede => {

@@ -2,5 +2,6 @@
     "chat.checkpoints.showFileChanges": true,
     "chat.editing.autoAcceptDelay": 1,
     "chat.edits2.enabled": true,
-    "chat.mcp.assisted.nuget.enabled": true
+    "chat.mcp.assisted.nuget.enabled": true,
+    "chat.agent.maxRequests": 100
 }

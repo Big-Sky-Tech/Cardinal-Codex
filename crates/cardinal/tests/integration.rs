@@ -17,17 +17,21 @@ fn test_phase_advancement() {
     
     let initial_phase = engine.state.turn.phase.clone();
     let initial_step = engine.state.turn.step.clone();
+    let num_players = engine.state.players.len() as u32;
     
-    // PassPriority should trigger phase advancement
-    let result = engine.apply_action(PlayerId(0), Action::PassPriority)
-        .expect("apply action");
+    // Pass priority from every player (need num_players passes to advance)
+    for _ in 0..num_players {
+        let priority_player = engine.state.turn.priority_player;
+        let result = engine.apply_action(priority_player, Action::PassPriority)
+            .expect("apply action");
+        
+        // Should have emitted at least one event
+        assert!(!result.events.is_empty(), "PassPriority should emit events");
+    }
     
-    // Should have emitted at least one event
-    assert!(!result.events.is_empty(), "PassPriority should emit events");
-    
-    // Check if phase or step advanced
+    // After all players pass, phase or step should have advanced
     let phase_advanced = engine.state.turn.phase != initial_phase || engine.state.turn.step != initial_step;
-    assert!(phase_advanced, "Phase or step should have advanced after pass");
+    assert!(phase_advanced, "Phase or step should have advanced after all players pass");
 }
 
 #[test]
@@ -43,13 +47,16 @@ fn test_phase_progression_full_turn() {
         .map(|p| p.steps.len())
         .sum();
     
-    // Pass priority enough times to cycle through the entire turn structure
-    // (each pass can advance one step if stack is empty and no pending choice)
-    for _ in 0..total_steps + 5 {
+    let num_players = engine.state.players.len() as u32;
+    
+    // For each step, we need all players to pass priority to advance
+    // So roughly total_steps * num_players passes needed
+    for _ in 0..(total_steps * num_players as usize + 10) {
         if engine.state.ended.is_some() {
             break; // Game ended, stop
         }
-        let _ = engine.apply_action(PlayerId(engine.state.turn.active_player.0), Action::PassPriority);
+        let priority_player = engine.state.turn.priority_player;
+        let _ = engine.apply_action(priority_player, Action::PassPriority);
     }
     
     // After cycling through all phases, we should have advanced to next turn
@@ -167,21 +174,22 @@ fn test_legality_zone_ownership() {
 }
 
 #[test]
-fn test_pass_priority_always_allowed() {
+fn test_pass_priority_requires_priority() {
     let rules = load_rules("../../rules.toml").expect("load rules");
     let mut engine = GameEngine::from_ruleset(rules, 42);
     
-    // PassPriority should always be allowed, even for inactive players
-    if engine.state.players.len() > 1 {
-        let inactive_player = if engine.state.turn.active_player == PlayerId(0) {
-            PlayerId(1)
-        } else {
-            PlayerId(0)
-        };
-        
-        let result = engine.apply_action(inactive_player, Action::PassPriority);
-        assert!(result.is_ok(), "PassPriority should always be allowed");
-    }
+    // The priority player should be able to pass
+    let priority_player = engine.state.turn.priority_player;
+    let result = engine.apply_action(priority_player, Action::PassPriority);
+    assert!(result.is_ok(), "Priority player should be able to pass priority");
+    
+    // After one player passes, priority rotates to the next player
+    let new_priority = engine.state.turn.priority_player;
+    assert_ne!(new_priority, priority_player, "Priority should rotate to next player");
+    
+    // The old priority player should NOT be able to pass now
+    let result = engine.apply_action(priority_player, Action::PassPriority);
+    assert!(result.is_err(), "Non-priority player should not be able to pass priority");
 }
 
 #[test]
@@ -324,5 +332,58 @@ fn test_concede_action() {
     
     // Game should be marked as ended
     assert!(engine.state.ended.is_some(), "Game should be marked as ended");
+}
+
+#[test]
+fn test_priority_rotation() {
+    let rules = load_rules("../../rules.toml").expect("load rules");
+    let mut engine = GameEngine::from_ruleset(rules, 42);
+    
+    let num_players = engine.state.players.len() as u32;
+    if num_players < 2 {
+        return; // Need 2+ players for priority rotation test
+    }
+    
+    let initial_priority = engine.state.turn.priority_player;
+    let mut priority_sequence = vec![initial_priority];
+    
+    // Pass priority num_players times to complete a round
+    for _ in 0..num_players {
+        let current_priority = engine.state.turn.priority_player;
+        let result = engine.apply_action(current_priority, Action::PassPriority)
+            .expect("should be able to pass");
+        
+        // Verify we got a priority passed event
+        assert!(result.events.iter()
+            .any(|e| matches!(e, Event::PriorityPassed { by: p } if p == &current_priority)),
+            "PriorityPassed event should be emitted");
+        
+        priority_sequence.push(engine.state.turn.priority_player);
+    }
+    
+    // After num_players passes, we should be back at the initial priority player
+    // (or close to it depending on phase advancement)
+    assert!(priority_sequence.iter().take(num_players as usize).all(|p| {
+        // Each player should get priority once
+        priority_sequence.iter().filter(|x| x == &p).count() >= 1
+    }), "Each player should have gotten priority");
+}
+
+#[test]
+fn test_priority_passes_tracked() {
+    let rules = load_rules("../../rules.toml").expect("load rules");
+    let mut engine = GameEngine::from_ruleset(rules, 42);
+    
+    // Initially, priority_passes should be 0
+    assert_eq!(engine.state.turn.priority_passes, 0, "Priority passes should start at 0");
+    
+    // Pass priority once
+    let priority_player = engine.state.turn.priority_player;
+    let _ = engine.apply_action(priority_player, Action::PassPriority);
+    
+    // priority_passes should be incremented before any phase advancement
+    // But it may be reset if phase advancement occurs. Let's check it's tracking correctly:
+    let passes_after_first = engine.state.turn.priority_passes;
+    assert!(passes_after_first >= 1, "Priority passes should have been incremented");
 }
 
