@@ -101,7 +101,26 @@ impl GameEngine {
         while !self.state.stack.is_empty() && self.state.pending_choice.is_none() {
             if let Some(item) = self.state.stack.pop() {
                 let item_id = item.id;
-                // Future: emit item's effects as commands
+                
+                // Execute the effect and apply resulting commands
+                match crate::engine::effect_executor::execute_effect(
+                    &item.effect,
+                    item.source,
+                    item.controller,
+                    &self.state,
+                ) {
+                    Ok(commands) => {
+                        // Apply the commands and collect their events
+                        let effect_events = crate::engine::events::commit_commands(&mut self.state, &commands);
+                        events.extend(effect_events);
+                    }
+                    Err(err) => {
+                        // Log error but continue resolving stack
+                        eprintln!("Error executing effect: {:?}", err);
+                    }
+                }
+                
+                // Emit StackResolved event after executing effect
                 events.push(Event::StackResolved { item_id });
             }
         }
