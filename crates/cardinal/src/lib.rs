@@ -8,6 +8,7 @@ pub mod engine;
 pub mod util;
 
 pub use engine::core::{GameEngine, StepResult};
+pub use engine::init::initialize_game;
 pub use error::{EngineError, LegalityError};
 pub use model::action::Action;
 pub use model::command::Command;

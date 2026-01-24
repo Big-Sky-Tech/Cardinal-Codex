@@ -436,3 +436,189 @@ fn test_trigger_evaluation_on_card_play() {
     }
 }
 
+#[test]
+fn test_game_initialization_creates_decks() {
+    let rules = load_rules("../../rules.toml").expect("load rules");
+    let initial_state = GameState::from_ruleset(&rules);
+    
+    // Create test cards for each player's deck
+    let mut state = initial_state.clone();
+    let num_players = state.players.len() as u32;
+    
+    for i in 0..num_players {
+        let player_id = PlayerId(i as u8);
+        let deck_zone_id_string = format!("deck@{}", player_id.0);
+        
+        // Find the deck zone and add test cards
+        if let Some(deck_zone) = state.zones.iter_mut()
+            .find(|z| z.id.0 == deck_zone_id_string)
+        {
+            // Add 40 test cards to the deck
+            for card_num in 0..40 {
+                let card_id = cardinal::ids::CardId(i * 100 + card_num);
+                deck_zone.cards.push(card_id);
+            }
+        }
+    }
+    
+    // Initialize the game
+    let initialized = cardinal::initialize_game(state, &rules, 42);
+    
+    // Verify decks exist and have cards
+    let mut at_least_one_deck_changed = false;
+    for i in 0..num_players {
+        let player_id = PlayerId(i as u8);
+        let deck_zone_id_string = format!("deck@{}", player_id.0);
+        
+        let deck_zone = initialized.zones.iter()
+            .find(|z| z.id.0 == deck_zone_id_string);
+        
+        assert!(deck_zone.is_some(), "Deck zone should exist");
+        
+        let deck = deck_zone.unwrap();
+        let is_first_player = player_id == initialized.turn.active_player;
+        
+        // If this is not the first player, or skip_first_turn_draw is false, 
+        // some cards should have been drawn
+        if !is_first_player || !rules.turn.skip_first_turn_draw_for_first_player {
+            if deck.cards.len() < 40 {
+                at_least_one_deck_changed = true;
+            }
+        }
+    }
+    
+    assert!(at_least_one_deck_changed, "At least one deck should have cards drawn during initialization");
+}
+
+#[test]
+fn test_game_initialization_draws_starting_hands() {
+    let rules = load_rules("../../rules.toml").expect("load rules");
+    let initial_state = GameState::from_ruleset(&rules);
+    let starting_hand_size = rules.players.starting_hand_size;
+    
+    let mut state = initial_state.clone();
+    let num_players = state.players.len() as u32;
+    
+    // Create test decks
+    for i in 0..num_players {
+        let player_id = PlayerId(i as u8);
+        let deck_zone_id_string = format!("deck@{}", player_id.0);
+        
+        if let Some(deck_zone) = state.zones.iter_mut()
+            .find(|z| z.id.0 == deck_zone_id_string)
+        {
+            // Add enough cards for starting hand plus shuffled deck
+            for card_num in 0..60 {
+                let card_id = cardinal::ids::CardId(i * 1000 + card_num);
+                deck_zone.cards.push(card_id);
+            }
+        }
+    }
+    
+    // Initialize the game
+    let initialized = cardinal::initialize_game(state, &rules, 42);
+    
+    // Check that players have cards in their hands
+    for i in 0..num_players {
+        let player_id = PlayerId(i as u8);
+        let is_first_player = player_id == initialized.turn.active_player;
+        let hand_zone_id_string = format!("hand@{}", player_id.0);
+        
+        let hand_zone = initialized.zones.iter()
+            .find(|z| z.id.0 == hand_zone_id_string);
+        
+        assert!(hand_zone.is_some(), "Hand zone should exist for player {}", i);
+        
+        let hand = hand_zone.unwrap();
+        
+        // First player may skip draw if configured
+        if !is_first_player || !rules.turn.skip_first_turn_draw_for_first_player {
+            assert_eq!(
+                hand.cards.len(), 
+                starting_hand_size,
+                "Player {} should have starting_hand_size cards in hand",
+                i
+            );
+        } else {
+            // First player skipped draw
+            assert_eq!(
+                hand.cards.len(),
+                0,
+                "First player should have 0 cards if skip_first_turn_draw is true"
+            );
+        }
+    }
+}
+
+#[test]
+fn test_game_initialization_determines_first_player() {
+    let rules = load_rules("../../rules.toml").expect("load rules");
+    let initial_state = GameState::from_ruleset(&rules);
+    
+    let mut state = initial_state.clone();
+    let num_players = state.players.len() as u32;
+    
+    // Add test cards to decks
+    for i in 0..num_players {
+        let player_id = PlayerId(i as u8);
+        let deck_zone_id_string = format!("deck@{}", player_id.0);
+        
+        if let Some(deck_zone) = state.zones.iter_mut()
+            .find(|z| z.id.0 == deck_zone_id_string)
+        {
+            for card_num in 0..40 {
+                let card_id = cardinal::ids::CardId(i * 1000 + card_num);
+                deck_zone.cards.push(card_id);
+            }
+        }
+    }
+    
+    // Initialize game multiple times with same seed - should get same first player
+    let initialized1 = cardinal::initialize_game(state.clone(), &rules, 42);
+    let initialized2 = cardinal::initialize_game(state.clone(), &rules, 42);
+    
+    assert_eq!(
+        initialized1.turn.active_player,
+        initialized2.turn.active_player,
+        "Same seed should result in same first player"
+    );
+    
+    // Different seed might give different first player (with "random" rule)
+    let initialized3 = cardinal::initialize_game(state.clone(), &rules, 99);
+    // This might be the same or different - just verify it's a valid player ID
+    assert!(initialized3.turn.active_player.0 < num_players as u8, "First player should be valid");
+}
+
+#[test]
+fn test_game_initialization_preserves_priority() {
+    let rules = load_rules("../../rules.toml").expect("load rules");
+    let initial_state = GameState::from_ruleset(&rules);
+    
+    let mut state = initial_state.clone();
+    let num_players = state.players.len() as u32;
+    
+    // Add test cards
+    for i in 0..num_players {
+        let player_id = PlayerId(i as u8);
+        let deck_zone_id_string = format!("deck@{}", player_id.0);
+        
+        if let Some(deck_zone) = state.zones.iter_mut()
+            .find(|z| z.id.0 == deck_zone_id_string)
+        {
+            for card_num in 0..40 {
+                let card_id = cardinal::ids::CardId(i * 100 + card_num);
+                deck_zone.cards.push(card_id);
+            }
+        }
+    }
+    
+    let initialized = cardinal::initialize_game(state, &rules, 42);
+    
+    // Priority player should be the same as active player initially
+    assert_eq!(
+        initialized.turn.active_player,
+        initialized.turn.priority_player,
+        "Priority player should be the same as active player after initialization"
+    );
+}
+
