@@ -69,6 +69,20 @@ fn effect_to_command(
     let id = *stack_id;
     *stack_id += 1;
 
+    // Check if this is a scripted effect (indicated by "script:" prefix)
+    if effect_kind.starts_with("script:") {
+        let script_name = effect_kind.strip_prefix("script:").unwrap_or(effect_kind);
+        
+        return Some(Command::PushStack {
+            item: StackItem {
+                id,
+                source: Some(source),
+                controller,
+                effect: EffectRef::Scripted(script_name.to_string()),
+            },
+        });
+    }
+
     match effect_kind {
         "damage" => {
             let amount = params.get("amount")

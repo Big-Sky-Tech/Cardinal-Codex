@@ -124,6 +124,7 @@ impl GameEngine {
                     item.source,
                     item.controller,
                     &self.state,
+                    Some(&self.scripting),
                 ) {
                     Ok(commands) => {
                         // Apply the commands and collect their events

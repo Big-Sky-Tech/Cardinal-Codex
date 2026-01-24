@@ -2,6 +2,7 @@ use crate::{
     ids::{CardId, PlayerId},
     model::command::{Command, EffectRef},
     state::gamestate::GameState,
+    engine::scripting::{RhaiEngine, ScriptContext},
     error::CardinalError,
 };
 
@@ -9,21 +10,89 @@ use crate::{
 /// This handles three types of effects:
 /// 1. Builtin effects (damage, draw, gain_life, pump) - parsed from effect string
 /// 2. Data-driven effects - future: loaded from TOML params
-/// 3. Scripted effects - future: executed via Rhai
+/// 3. Scripted effects - executed via Rhai
 pub fn execute_effect(
     effect: &EffectRef,
-    _source: Option<CardId>,
+    source: Option<CardId>,
     controller: PlayerId,
     _state: &GameState,
+    scripting: Option<&RhaiEngine>,
 ) -> Result<Vec<Command>, CardinalError> {
     match effect {
         EffectRef::Builtin(effect_str) => execute_builtin_effect(effect_str, controller),
-        EffectRef::Scripted(_script_name) => {
-            // TODO: Execute scripted effect via RhaiEngine
-            // For now, return empty command list
-            Ok(vec![])
+        EffectRef::Scripted(script_name) => {
+            if let Some(engine) = scripting {
+                execute_scripted_effect(script_name, source, controller, engine)
+            } else {
+                Err(CardinalError(format!("Cannot execute scripted effect '{}': RhaiEngine not available", script_name)))
+            }
         }
     }
+}
+
+/// Execute a scripted effect via RhaiEngine
+fn execute_scripted_effect(
+    script_name: &str,
+    source: Option<CardId>,
+    controller: PlayerId,
+    engine: &RhaiEngine,
+) -> Result<Vec<Command>, CardinalError> {
+    let context = ScriptContext {
+        controller: controller.0,
+        source_card: source.map(|c| c.0).unwrap_or(0),
+    };
+    
+    let results = engine.execute_ability(script_name, context)?;
+    
+    // Convert Rhai Dynamic results into Commands
+    let mut commands = Vec::new();
+    
+    for result in results {
+        // Each result should be a map with a "type" field
+        if let Some(map) = result.try_cast::<rhai::Map>() {
+            if let Some(effect_type) = map.get("type").and_then(|v| v.clone().try_cast::<String>()) {
+                match effect_type.as_str() {
+                    "damage" => {
+                        let target = map.get("target")
+                            .and_then(|v| v.clone().try_cast::<i32>())
+                            .unwrap_or(0);
+                        let amount = map.get("amount")
+                            .and_then(|v| v.clone().try_cast::<i32>())
+                            .unwrap_or(0);
+                        
+                        commands.push(Command::ChangeLife {
+                            player: PlayerId(target as u8),
+                            delta: -amount,
+                        });
+                    }
+                    "draw" => {
+                        // TODO: Implement card drawing
+                    }
+                    "gain_life" => {
+                        let player = map.get("player")
+                            .and_then(|v| v.clone().try_cast::<i32>())
+                            .unwrap_or(0);
+                        let amount = map.get("amount")
+                            .and_then(|v| v.clone().try_cast::<i32>())
+                            .unwrap_or(0);
+                        
+                        commands.push(Command::ChangeLife {
+                            player: PlayerId(player as u8),
+                            delta: amount,
+                        });
+                    }
+                    "pump" => {
+                        // TODO: Implement creature stat modification
+                    }
+                    _ => {
+                        return Err(CardinalError(format!("Unknown scripted effect type: {}", effect_type)));
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(commands)
 }
 
 /// Execute a builtin effect parsed from its string representation
@@ -112,7 +181,7 @@ mod tests {
         let controller = PlayerId(0);
         let state = minimal_game_state();
         
-        let result = execute_effect(&effect, None, controller, &state);
+        let result = execute_effect(&effect, None, controller, &state, None);
         assert!(result.is_ok());
         
         let commands = result.unwrap();
@@ -133,7 +202,7 @@ mod tests {
         let controller = PlayerId(0);
         let state = minimal_game_state();
         
-        let result = execute_effect(&effect, None, controller, &state);
+        let result = execute_effect(&effect, None, controller, &state, None);
         if result.is_err() {
             println!("Error: {:?}", result.as_ref().err());
         }
@@ -157,7 +226,7 @@ mod tests {
         let controller = PlayerId(0);
         let state = minimal_game_state();
         
-        let result = execute_effect(&effect, None, controller, &state);
+        let result = execute_effect(&effect, None, controller, &state, None);
         assert!(result.is_ok());
         
         // Draw not yet implemented, should return empty
@@ -171,7 +240,7 @@ mod tests {
         let controller = PlayerId(0);
         let state = minimal_game_state();
         
-        let result = execute_effect(&effect, None, controller, &state);
+        let result = execute_effect(&effect, None, controller, &state, None);
         assert!(result.is_ok());
         
         // Pump not yet implemented, should return empty
@@ -185,7 +254,7 @@ mod tests {
         let controller = PlayerId(0);
         let state = minimal_game_state();
         
-        let result = execute_effect(&effect, None, controller, &state);
+        let result = execute_effect(&effect, None, controller, &state, None);
         assert!(result.is_err());
     }
     
@@ -195,7 +264,71 @@ mod tests {
         let controller = PlayerId(0);
         let state = minimal_game_state();
         
-        let result = execute_effect(&effect, None, controller, &state);
+        let result = execute_effect(&effect, None, controller, &state, None);
         assert!(result.is_err());
+    }
+    
+    #[test]
+    fn test_execute_scripted_effect() {
+        use crate::engine::scripting::RhaiEngine;
+        
+        let mut engine = RhaiEngine::new();
+        let script = r#"
+            fn execute_ability() {
+                gain_life(0, 3)
+            }
+        "#;
+        
+        engine.register_script("test_card".to_string(), script).unwrap();
+        
+        let effect = EffectRef::Scripted("test_card".to_string());
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, Some(&engine));
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::ChangeLife { player, delta } => {
+                assert_eq!(*player, PlayerId(0));
+                assert_eq!(*delta, 3);
+            }
+            _ => panic!("Expected ChangeLife command"),
+        }
+    }
+    
+    #[test]
+    fn test_execute_scripted_damage_effect() {
+        use crate::engine::scripting::RhaiEngine;
+        
+        let mut engine = RhaiEngine::new();
+        let script = r#"
+            fn execute_ability() {
+                deal_damage(1, 5)
+            }
+        "#;
+        
+        engine.register_script("bolt_card".to_string(), script).unwrap();
+        
+        let effect = EffectRef::Scripted("bolt_card".to_string());
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, Some(&engine));
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::ChangeLife { player, delta } => {
+                assert_eq!(*player, PlayerId(1));
+                assert_eq!(*delta, -5);
+            }
+            _ => panic!("Expected ChangeLife command"),
+        }
     }
 }
