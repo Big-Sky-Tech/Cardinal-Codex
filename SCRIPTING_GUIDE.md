@@ -255,3 +255,145 @@ Planned features for the scripting system:
 - Cardinal Architecture: See `ARCHITECTURE.md`
 - Example Scripts: See `examples/scripts/`
 - Example Cards: See `examples/hybrid_cards.toml`
+
+## Keywords and Stats System
+
+### Overview
+
+Cardinal's rules schema is now fully active - cards can declare keywords and stats that must match definitions in `rules.toml`. This ensures consistency and enables data-driven gameplay mechanics.
+
+### Defining Keywords in Rules
+
+Keywords are defined in `rules.toml`:
+
+```toml
+[[keywords]]
+id          = "flying"
+name        = "Flying"
+description = "Can only be blocked by units with Flying or Reach."
+
+[[keywords]]
+id          = "quick"
+name        = "Quick"
+description = "May be played at quick speed (during opponent's turn)."
+```
+
+### Using Keywords in Cards
+
+Cards reference keywords by their `id`:
+
+```toml
+[[cards]]
+id = "100"
+name = "Sky Dragon"
+card_type = "creature"
+keywords = ["flying", "quick"]  # Must match keyword IDs from rules.toml
+
+[cards.stats]
+power = "3"
+toughness = "4"
+```
+
+### Card Stats
+
+Stats are key-value pairs that can represent any game-relevant attributes:
+
+```toml
+[cards.stats]
+power = "3"           # Creature combat power
+toughness = "4"       # Creature durability
+range = "2"           # Custom stat: attack range
+element = "fire"      # Custom stat: elemental type
+```
+
+### Validation
+
+**Keyword Validation:**
+- Cards can only reference keywords defined in `rules.toml`
+- Unknown keywords will cause validation errors at load time
+- Use `build_validated_registry()` to enable validation
+
+**Example Error:**
+```
+Card 'Sky Dragon' (ID: 100) references undefined keyword 'haste'.
+Valid keywords: ["flying", "quick", "summoning_sick"]
+```
+
+### Working with Keywords and Stats in Code
+
+**Check if a card has a keyword:**
+```rust
+use cardinal::engine::cards::{card_has_keyword, get_card};
+
+if let Some(card) = get_card(registry, card_id) {
+    if card_has_keyword(card, "flying") {
+        // Card has flying keyword
+    }
+}
+```
+
+**Access card stats:**
+```rust
+use cardinal::engine::cards::{get_card_stat, get_card_stat_i32};
+
+if let Some(card) = get_card(registry, card_id) {
+    // Get stat as string
+    if let Some(element) = get_card_stat(card, "element") {
+        println!("Element: {}", element);
+    }
+    
+    // Get stat as integer
+    if let Some(power) = get_card_stat_i32(card, "power") {
+        println!("Power: {}", power);
+    }
+}
+```
+
+### Future: Keyword Behavior Implementation
+
+Keywords will be implemented via:
+1. **Rhai scripts** - Custom behavior for each keyword
+2. **RulesModule trait** - Rust-based keyword implementations
+3. **Event listeners** - Keywords react to game events
+
+Example future implementation:
+```rhai
+// keywords/flying.rhai
+fn on_declare_blockers(ctx) {
+    // Only allow flying/reach creatures to block
+    if !ctx.blocker_has_keyword("flying") && !ctx.blocker_has_keyword("reach") {
+        return reject_block("Only flying creatures can block flying")
+    }
+}
+```
+
+### Migration Path
+
+**Existing cards remain compatible:**
+- `keywords` field is optional (defaults to empty array)
+- `stats` field is optional (defaults to empty map)
+- No breaking changes to existing card definitions
+
+### Complete Example
+
+```toml
+[[cards]]
+id = "104"
+name = "Storm Elemental"
+card_type = "creature"
+cost = "5"
+description = "A powerful elemental that damages opponents when it enters"
+keywords = ["flying"]
+script_path = "scripts/storm_elemental.rhai"
+
+[cards.stats]
+power = "4"
+toughness = "5"
+element = "air"
+
+[[cards.abilities]]
+trigger = "etb"
+effect = "script:storm_elemental"
+```
+
+See `examples/cards_with_keywords.toml` for more examples.
