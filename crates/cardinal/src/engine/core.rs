@@ -90,9 +90,94 @@ impl GameEngine {
         }
     }
 
-    fn advance_phase_if_ready(&mut self, _events: &mut Vec<Event>) {
-        // TODO: implement phase/step progression logic
-        // This should advance the turn phase when appropriate
+    fn advance_phase_if_ready(&mut self, events: &mut Vec<Event>) {
+        // Advance to the next phase/step if:
+        // 1. Stack is empty
+        // 2. No pending choices
+        // 3. All players have passed priority (simplified: just auto-advance)
+        //
+        // In a full implementation, this would handle priority passing and
+        // multi-player windows. For now, we assume single-player or auto-advance.
+
+        if !self.state.stack.is_empty() || self.state.pending_choice.is_some() {
+            // Can't advance while stack has items or choice is pending
+            return;
+        }
+
+        // Find current phase index
+        let current_phase_idx = self.rules.turn.phases.iter()
+            .position(|p| p.id.as_str() == self.state.turn.phase.0)
+            .unwrap_or(0);
+        let current_phase = &self.rules.turn.phases[current_phase_idx];
+
+        // Find current step index within current phase
+        let current_step_idx = current_phase.steps.iter()
+            .position(|s| s.id.as_str() == self.state.turn.step.0)
+            .unwrap_or(0);
+
+        // Try to advance to next step in current phase
+        if current_step_idx + 1 < current_phase.steps.len() {
+            let next_step = &current_phase.steps[current_step_idx + 1];
+            let step_box: Box<str> = next_step.id.clone().into_boxed_str();
+            let step_static: &'static str = Box::leak(step_box);
+            self.state.turn.step = crate::ids::StepId(step_static);
+            events.push(Event::PhaseAdvanced {
+                phase: self.state.turn.phase.clone(),
+                step: self.state.turn.step.clone(),
+            });
+            return;
+        }
+
+        // No more steps in current phase; advance to next phase
+        if current_phase_idx + 1 < self.rules.turn.phases.len() {
+            let next_phase = &self.rules.turn.phases[current_phase_idx + 1];
+            let phase_box: Box<str> = next_phase.id.clone().into_boxed_str();
+            let phase_static: &'static str = Box::leak(phase_box);
+            self.state.turn.phase = crate::ids::PhaseId(phase_static);
+
+            // Start at first step of new phase
+            if let Some(first_step) = next_phase.steps.first() {
+                let step_box: Box<str> = first_step.id.clone().into_boxed_str();
+                let step_static: &'static str = Box::leak(step_box);
+                self.state.turn.step = crate::ids::StepId(step_static);
+            } else {
+                self.state.turn.step = crate::ids::StepId("start");
+            }
+
+            events.push(Event::PhaseAdvanced {
+                phase: self.state.turn.phase.clone(),
+                step: self.state.turn.step.clone(),
+            });
+            return;
+        }
+
+        // End of turn: cycle back to first phase and advance turn number
+        if let Some(first_phase) = self.rules.turn.phases.first() {
+            let phase_box: Box<str> = first_phase.id.clone().into_boxed_str();
+            let phase_static: &'static str = Box::leak(phase_box);
+            self.state.turn.phase = crate::ids::PhaseId(phase_static);
+
+            if let Some(first_step) = first_phase.steps.first() {
+                let step_box: Box<str> = first_step.id.clone().into_boxed_str();
+                let step_static: &'static str = Box::leak(step_box);
+                self.state.turn.step = crate::ids::StepId(step_static);
+            } else {
+                self.state.turn.step = crate::ids::StepId("start");
+            }
+
+            self.state.turn.number += 1;
+
+            // Rotate active player
+            let num_players = self.state.players.len() as u8;
+            let next_player_idx = (self.state.turn.active_player.0 + 1) % num_players;
+            self.state.turn.active_player = crate::ids::PlayerId(next_player_idx);
+            self.state.turn.priority_player = self.state.turn.active_player;
+
+            events.push(Event::PhaseAdvanced {
+                phase: self.state.turn.phase.clone(),
+                step: self.state.turn.step.clone(),
+            });
+        }
     }
 
     fn validate_action(&self, player: PlayerId, action: &Action) -> Result<(), LegalityError> {
