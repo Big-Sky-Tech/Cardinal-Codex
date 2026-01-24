@@ -161,6 +161,9 @@ pub struct CardDef {
     /// Abilities this card has (triggered effects)
     #[serde(default)]
     pub abilities: Vec<CardAbility>,
+    /// Optional path to Rhai script file for scripted behavior
+    #[serde(default)]
+    pub script_path: Option<String>,
 }
 
 /// An ability on a card that can be triggered

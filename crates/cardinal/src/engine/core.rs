@@ -5,12 +5,14 @@ use crate::{
     model::event::Event,
     rules::schema::Ruleset,
     state::gamestate::GameState,
+    engine::scripting::RhaiEngine,
 };
 
 pub struct GameEngine {
     pub rules: Ruleset,
     pub state: GameState,
     pub cards: crate::engine::cards::CardRegistry,
+    pub scripting: RhaiEngine,
     seed: u64,
     next_choice_id: u32,
     next_stack_id: u32,
@@ -23,7 +25,8 @@ pub struct StepResult {
 impl GameEngine {
     pub fn new(rules: Ruleset, seed: u64, initial_state: GameState) -> Self {
         let cards = crate::engine::cards::build_registry(&rules.cards);
-        Self { rules, state: initial_state, cards, seed, next_choice_id: 1, next_stack_id: 1 }
+        let scripting = RhaiEngine::new();
+        Self { rules, state: initial_state, cards, scripting, seed, next_choice_id: 1, next_stack_id: 1 }
     }
 
     /// Build a GameEngine directly from a `Ruleset`. This will create a minimal GameState
@@ -31,7 +34,20 @@ impl GameEngine {
     pub fn from_ruleset(rules: Ruleset, seed: u64) -> Self {
         let initial = GameState::from_ruleset(&rules);
         let cards = crate::engine::cards::build_registry(&rules.cards);
-        Self { rules, state: initial, cards, seed, next_choice_id: 1, next_stack_id: 1 }
+        let scripting = RhaiEngine::new();
+        
+        // Load scripts for cards that have script_path defined
+        // For now, we'll skip actual file loading (that would require IO)
+        // Scripts will be registered manually or via a separate initialization step
+        // This maintains determinism in the core engine
+        for card_def in &rules.cards {
+            if let Some(_script_path) = &card_def.script_path {
+                // TODO: Load script from file in a higher-level initialization
+                // For now, scripted cards are recognized but scripts must be registered separately
+            }
+        }
+        
+        Self { rules, state: initial, cards, scripting, seed, next_choice_id: 1, next_stack_id: 1 }
     }
 
     pub fn legal_actions(&self, _player: PlayerId) -> Vec<Action> {
