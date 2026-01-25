@@ -1,0 +1,5 @@
+pack_id = "starter-set"
+version = "1.0.0"
+name = "Starter Card Set"
+description = "A starter collection of basic cards for Cardinal Codex"
+dependencies = []
