@@ -1,3 +1,4 @@
+use cardinal_kernel as cardinal;
 use cardinal::*;
 use cardinal::ids::PlayerId;
 use cardinal::model::action::Action;
