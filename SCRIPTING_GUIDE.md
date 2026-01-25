@@ -194,10 +194,10 @@ fn execute_ability() {
 
 ## Script Execution Flow
 
-1. **Load Time**: Scripts are compiled when the game engine is initialized
-2. **Trigger Time**: When a card's ability triggers, the corresponding effect is pushed to the stack
-3. **Resolution Time**: When the stack resolves, the script's `execute_ability()` function is called
-4. **Effect Application**: The script's return value is converted to Commands and applied to the game state
+1. **Load Time**: During host initialization, scripts must be loaded and registered with the engine (e.g., via `engine.scripting.register_script(...)`). `GameEngine::new` / `from_ruleset` only construct an empty scripting engine and do **not** automatically load scripts from `script_path`.
+2. **Trigger Time**: When a card's ability triggers, the corresponding (builtin or scripted) effect is pushed to the stack
+3. **Resolution Time**: When the stack resolves, the scripted effect's `execute_ability()` function is called (if the card uses a script)
+4. **Effect Application**: The script's return value is converted to Commands and applied to the game state, just like builtin effects
 
 ## Determinism and Safety
 

@@ -125,9 +125,9 @@ impl GameEngine {
                         let effect_events = crate::engine::events::commit_commands(&mut self.state, &commands);
                         events.extend(effect_events);
                     }
-                    Err(err) => {
-                        // Log error but continue resolving stack
-                        eprintln!("Error executing effect: {:?}", err);
+                    Err(_err) => {
+                        // Effect execution failed; silently continue resolving the stack.
+                        // Future: emit a dedicated Event to report the failure to callers
                     }
                 }
                 

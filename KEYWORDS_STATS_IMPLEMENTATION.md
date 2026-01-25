@@ -57,7 +57,7 @@ Valid keywords: flying, quick, summoning_sick
 - `test_get_card_stats` - Tests stat access
 - `test_parse_card_stat_i32` - Tests error-handling stat parser
 
-**All tests passing: 36 total (17 unit + 19 integration)**
+**Test coverage**: 5 new tests added to the existing suite (see the main test output for current overall count).
 
 ## Usage Examples
 

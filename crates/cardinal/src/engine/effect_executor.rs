@@ -47,47 +47,173 @@ fn execute_scripted_effect(
     // Convert Rhai Dynamic results into Commands
     let mut commands = Vec::new();
     
-    for result in results {
-        // Each result should be a map with a "type" field
-        if let Some(map) = result.try_cast::<rhai::Map>() {
-            if let Some(effect_type) = map.get("type").and_then(|v| v.clone().try_cast::<String>()) {
-                match effect_type.as_str() {
-                    "damage" => {
-                        let target = map.get("target")
-                            .and_then(|v| v.clone().try_cast::<i32>())
-                            .unwrap_or(0);
-                        let amount = map.get("amount")
-                            .and_then(|v| v.clone().try_cast::<i32>())
-                            .unwrap_or(0);
-                        
-                        commands.push(Command::ChangeLife {
-                            player: PlayerId(target as u8),
-                            delta: -amount,
-                        });
-                    }
-                    "draw" => {
-                        // TODO: Implement card drawing
-                    }
-                    "gain_life" => {
-                        let player = map.get("player")
-                            .and_then(|v| v.clone().try_cast::<i32>())
-                            .unwrap_or(0);
-                        let amount = map.get("amount")
-                            .and_then(|v| v.clone().try_cast::<i32>())
-                            .unwrap_or(0);
-                        
-                        commands.push(Command::ChangeLife {
-                            player: PlayerId(player as u8),
-                            delta: amount,
-                        });
-                    }
-                    "pump" => {
-                        // TODO: Implement creature stat modification
-                    }
-                    _ => {
-                        return Err(CardinalError(format!("Unknown scripted effect type: {}", effect_type)));
-                    }
+    for (index, result) in results.into_iter().enumerate() {
+        // Each result must be a map with a "type" field
+        let map = result.try_cast::<rhai::Map>()
+            .ok_or_else(|| CardinalError(format!(
+                "Script '{}' returned non-map value at index {}", 
+                script_name, index
+            )))?;
+        
+        let effect_type = map.get("type")
+            .ok_or_else(|| CardinalError(format!(
+                "Script '{}' result at index {} missing 'type' field",
+                script_name, index
+            )))?
+            .clone()
+            .try_cast::<String>()
+            .ok_or_else(|| CardinalError(format!(
+                "Script '{}' result at index {} has non-string 'type' field",
+                script_name, index
+            )))?;
+        
+        match effect_type.as_str() {
+            "damage" => {
+                let target = map.get("target")
+                    .ok_or_else(|| CardinalError(format!(
+                        "Script '{}' damage effect missing 'target' field",
+                        script_name
+                    )))?
+                    .clone()
+                    .try_cast::<i32>()
+                    .ok_or_else(|| CardinalError(format!(
+                        "Script '{}' damage effect has non-integer 'target'",
+                        script_name
+                    )))?;
+                
+                let amount = map.get("amount")
+                    .ok_or_else(|| CardinalError(format!(
+                        "Script '{}' damage effect missing 'amount' field",
+                        script_name
+                    )))?
+                    .clone()
+                    .try_cast::<i32>()
+                    .ok_or_else(|| CardinalError(format!(
+                        "Script '{}' damage effect has non-integer 'amount'",
+                        script_name
+                    )))?;
+                
+                // Validate target is non-negative
+                if target < 0 {
+                    return Err(CardinalError(format!(
+                        "Script '{}' damage effect has negative target: {}",
+                        script_name, target
+                    )));
                 }
+                
+                // Validate amount is non-negative
+                if amount < 0 {
+                    return Err(CardinalError(format!(
+                        "Script '{}' damage effect has negative amount: {}",
+                        script_name, amount
+                    )));
+                }
+                
+                // Validate target fits in u8 range
+                if target > u8::MAX as i32 {
+                    return Err(CardinalError(format!(
+                        "Script '{}' damage effect has target out of range: {}",
+                        script_name, target
+                    )));
+                }
+                
+                commands.push(Command::ChangeLife {
+                    player: PlayerId(target as u8),
+                    delta: -amount,
+                });
+            }
+            "draw" => {
+                // TODO: Implement card drawing
+                // For now, validate fields exist but don't execute
+                let _player = map.get("player")
+                    .ok_or_else(|| CardinalError(format!(
+                        "Script '{}' draw effect missing 'player' field",
+                        script_name
+                    )))?;
+                let _count = map.get("count")
+                    .ok_or_else(|| CardinalError(format!(
+                        "Script '{}' draw effect missing 'count' field",
+                        script_name
+                    )))?;
+            }
+            "gain_life" => {
+                let player = map.get("player")
+                    .ok_or_else(|| CardinalError(format!(
+                        "Script '{}' gain_life effect missing 'player' field",
+                        script_name
+                    )))?
+                    .clone()
+                    .try_cast::<i32>()
+                    .ok_or_else(|| CardinalError(format!(
+                        "Script '{}' gain_life effect has non-integer 'player'",
+                        script_name
+                    )))?;
+                
+                let amount = map.get("amount")
+                    .ok_or_else(|| CardinalError(format!(
+                        "Script '{}' gain_life effect missing 'amount' field",
+                        script_name
+                    )))?
+                    .clone()
+                    .try_cast::<i32>()
+                    .ok_or_else(|| CardinalError(format!(
+                        "Script '{}' gain_life effect has non-integer 'amount'",
+                        script_name
+                    )))?;
+                
+                // Validate player is non-negative
+                if player < 0 {
+                    return Err(CardinalError(format!(
+                        "Script '{}' gain_life effect has negative player: {}",
+                        script_name, player
+                    )));
+                }
+                
+                // Validate amount is non-negative
+                if amount < 0 {
+                    return Err(CardinalError(format!(
+                        "Script '{}' gain_life effect has negative amount: {}",
+                        script_name, amount
+                    )));
+                }
+                
+                // Validate player fits in u8 range
+                if player > u8::MAX as i32 {
+                    return Err(CardinalError(format!(
+                        "Script '{}' gain_life effect has player out of range: {}",
+                        script_name, player
+                    )));
+                }
+                
+                commands.push(Command::ChangeLife {
+                    player: PlayerId(player as u8),
+                    delta: amount,
+                });
+            }
+            "pump" => {
+                // TODO: Implement creature stat modification
+                // For now, validate fields exist but don't execute
+                let _card = map.get("card")
+                    .ok_or_else(|| CardinalError(format!(
+                        "Script '{}' pump effect missing 'card' field",
+                        script_name
+                    )))?;
+                let _power = map.get("power")
+                    .ok_or_else(|| CardinalError(format!(
+                        "Script '{}' pump effect missing 'power' field",
+                        script_name
+                    )))?;
+                let _toughness = map.get("toughness")
+                    .ok_or_else(|| CardinalError(format!(
+                        "Script '{}' pump effect missing 'toughness' field",
+                        script_name
+                    )))?;
+            }
+            _ => {
+                return Err(CardinalError(format!(
+                    "Script '{}' has unknown effect type: '{}'",
+                    script_name, effect_type
+                )));
             }
         }
     }
@@ -105,6 +231,14 @@ fn execute_builtin_effect(effect_str: &str, controller: PlayerId) -> Result<Vec<
             .and_then(|s| s.parse::<i32>().ok())
             .ok_or_else(|| CardinalError(format!("Invalid damage amount in: {}", effect_str)))?;
         
+        // Validate amount is non-negative to prevent healing via damage
+        if amount < 0 {
+            return Err(CardinalError(format!(
+                "Builtin damage effect has negative amount: {} (effect: {})",
+                amount, effect_str
+            )));
+        }
+        
         // TODO: Add proper target selection
         // For now, damage affects the controller as a placeholder
         // Future: request target via PendingChoice, then apply to selected target
@@ -113,9 +247,17 @@ fn execute_builtin_effect(effect_str: &str, controller: PlayerId) -> Result<Vec<
             delta: -amount,
         }])
     } else if effect_str.starts_with("draw_") {
-        let _count = effect_str.strip_prefix("draw_")
+        let count = effect_str.strip_prefix("draw_")
             .and_then(|s| s.parse::<u32>().ok())
             .ok_or_else(|| CardinalError(format!("Invalid draw count in: {}", effect_str)))?;
+        
+        // Validate count is reasonable (prevent excessive draws)
+        if count == 0 {
+            return Err(CardinalError(format!(
+                "Builtin draw effect has zero count (effect: {})",
+                effect_str
+            )));
+        }
         
         // TODO: Implement card drawing
         // For now, return empty (no MoveCard commands yet)
@@ -124,6 +266,14 @@ fn execute_builtin_effect(effect_str: &str, controller: PlayerId) -> Result<Vec<
         let amount = effect_str.strip_prefix("gain_life_")
             .and_then(|s| s.parse::<i32>().ok())
             .ok_or_else(|| CardinalError(format!("Invalid life amount in: {}", effect_str)))?;
+        
+        // Validate amount is non-negative to prevent damage via life gain
+        if amount < 0 {
+            return Err(CardinalError(format!(
+                "Builtin gain_life effect has negative amount: {} (effect: {})",
+                amount, effect_str
+            )));
+        }
         
         Ok(vec![Command::ChangeLife {
             player: controller,
@@ -141,6 +291,8 @@ fn execute_builtin_effect(effect_str: &str, controller: PlayerId) -> Result<Vec<
         let _toughness = parts.get(1)
             .and_then(|s| s.parse::<i32>().ok())
             .ok_or_else(|| CardinalError(format!("Invalid toughness in: {}", effect_str)))?;
+        
+        // Note: pump can have negative values to reduce stats, so no validation here
         
         // TODO: Implement creature stat modification
         // For now, return empty (no creature tracking yet)

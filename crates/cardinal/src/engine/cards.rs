@@ -114,6 +114,11 @@ fn effect_to_command(
     if effect_kind.starts_with("script:") {
         let script_name = effect_kind.strip_prefix("script:").unwrap_or(effect_kind);
         
+        // Validate script name is not empty
+        if script_name.is_empty() {
+            return None;
+        }
+        
         return Some(Command::PushStack {
             item: StackItem {
                 id,
