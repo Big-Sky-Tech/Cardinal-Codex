@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-cardinal = { path = "../cardinal", package = "cardinal-kernel" }
+cardinal = { path = "../cardinal", package = "cardinal-kernel", version = "0.1.1" }
 clap = { version = "4.5", features = ["derive"] }
