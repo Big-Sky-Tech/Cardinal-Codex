@@ -1,7 +1,7 @@
 name = "Healing Touch"
 card_type = "Spell"
 cost = 2
-text = "You gain 4 life."
+description = "You gain 4 life."
 
 [stats]
 power = 0
