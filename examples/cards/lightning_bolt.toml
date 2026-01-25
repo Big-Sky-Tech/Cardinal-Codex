@@ -1,8 +1,9 @@
+id = "lightning_bolt_basic"
 name = "Lightning Bolt"
 card_type = "Spell"
-cost = 1
-text = "Deal 3 damage to any target."
+cost = "1"
+description = "Deal 3 damage to any target."
 
 [stats]
-power = 0
-toughness = 0
+power = "0"
+toughness = "0"
