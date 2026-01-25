@@ -1,14 +1,84 @@
 use cardinal::*;
 use cardinal::ids::PlayerId;
 use cardinal::model::action::Action;
+use clap::{Parser, Subcommand};
 use std::io::{self, BufRead};
 
+#[derive(Parser)]
+#[command(name = "cardinal")]
+#[command(about = "Cardinal - A Rules Engine TCG", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Play the game interactively
+    Play {
+        /// Path to rules.toml file
+        #[arg(short, long, default_value = "./rules.toml")]
+        rules: String,
+    },
+    /// Build a .ccpack file from a directory
+    BuildPack {
+        /// Input directory containing pack.toml
+        input: String,
+        /// Output .ccpack file path
+        output: String,
+    },
+    /// List contents of a .ccpack file
+    ListPack {
+        /// Path to .ccpack file
+        pack: String,
+    },
+    /// Unpack a .ccpack file to a directory
+    UnpackPack {
+        /// Path to .ccpack file
+        pack: String,
+        /// Output directory
+        output: String,
+    },
+}
+
 fn main() {
+    let cli = Cli::parse();
+
+    match cli.command {
+        Some(Commands::Play { rules }) => {
+            run_game(&rules);
+        }
+        Some(Commands::BuildPack { input, output }) => {
+            if let Err(e) = cardinal::pack::build_pack(&input, &output) {
+                eprintln!("Error building pack: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Some(Commands::ListPack { pack }) => {
+            if let Err(e) = cardinal::pack::list_pack(&pack) {
+                eprintln!("Error listing pack: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Some(Commands::UnpackPack { pack, output }) => {
+            if let Err(e) = cardinal::pack::unpack_pack(&pack, &output) {
+                eprintln!("Error unpacking: {}", e);
+                std::process::exit(1);
+            }
+        }
+        None => {
+            // Default: run the game with default rules
+            run_game("./rules.toml");
+        }
+    }
+}
+
+fn run_game(rules_path: &str) {
     println!("Welcome to Cardinal - A Rules Engine TCG!");
     println!();
 
     // Load rules
-    let rules = match cardinal::load_rules("./rules.toml") {
+    let rules = match cardinal::load_rules(rules_path) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("Failed to load rules: {:?}", e);
