@@ -6,7 +6,7 @@ description = "Headless, deterministic rules engine for turn-based, TCG-like gam
 license-file = "../../LICENSE"
 readme = "README.md"
 repository = "https://github.com/Big-Sky-Tech/Cardinal-Codex"
-homepage = "https://REPLACE-ME/homepage"
+homepage = "https://github.com/Big-Sky-Tech/Cardinal-Codex"
 documentation = "https://docs.rs/cardinal-kernel"
 [lib]
 path = "src/lib.rs"
