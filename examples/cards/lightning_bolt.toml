@@ -1,4 +1,4 @@
-id = "lightning_bolt"
+id = "lightning_bolt_basic"
 name = "Lightning Bolt"
 card_type = "Spell"
 cost = "1"

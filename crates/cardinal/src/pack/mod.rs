@@ -23,7 +23,7 @@
 //! # Example Usage
 //!
 //! ```no_run
-//! use cardinal::pack::{build_pack, load_pack, list_pack};
+//! use cardinal_kernel::pack::{build_pack, load_pack, list_pack};
 //!
 //! // Build a pack from a directory
 //! build_pack("./my-pack", "./output/my-pack.ccpack").unwrap();
