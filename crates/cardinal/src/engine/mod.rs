@@ -5,3 +5,5 @@ pub mod events;
 pub mod triggers;
 pub mod init;
 pub mod cards;
+pub mod scripting;
+pub mod effect_executor;

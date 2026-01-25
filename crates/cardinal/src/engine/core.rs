@@ -5,12 +5,14 @@ use crate::{
     model::event::Event,
     rules::schema::Ruleset,
     state::gamestate::GameState,
+    engine::scripting::RhaiEngine,
 };
 
 pub struct GameEngine {
     pub rules: Ruleset,
     pub state: GameState,
     pub cards: crate::engine::cards::CardRegistry,
+    pub scripting: RhaiEngine,
     seed: u64,
     next_choice_id: u32,
     next_stack_id: u32,
@@ -23,7 +25,8 @@ pub struct StepResult {
 impl GameEngine {
     pub fn new(rules: Ruleset, seed: u64, initial_state: GameState) -> Self {
         let cards = crate::engine::cards::build_registry(&rules.cards);
-        Self { rules, state: initial_state, cards, seed, next_choice_id: 1, next_stack_id: 1 }
+        let scripting = RhaiEngine::new();
+        Self { rules, state: initial_state, cards, scripting, seed, next_choice_id: 1, next_stack_id: 1 }
     }
 
     /// Build a GameEngine directly from a `Ruleset`. This will create a minimal GameState
@@ -31,7 +34,14 @@ impl GameEngine {
     pub fn from_ruleset(rules: Ruleset, seed: u64) -> Self {
         let initial = GameState::from_ruleset(&rules);
         let cards = crate::engine::cards::build_registry(&rules.cards);
-        Self { rules, state: initial, cards, seed, next_choice_id: 1, next_stack_id: 1 }
+        let scripting = RhaiEngine::new();
+        
+        // Note: Script loading from files is intentionally NOT done here to maintain
+        // determinism in the core engine. Scripts should be loaded via a separate
+        // initialization step at a higher level (e.g., in cardinal-cli or a web frontend).
+        // This keeps file I/O out of the engine core.
+        
+        Self { rules, state: initial, cards, scripting, seed, next_choice_id: 1, next_stack_id: 1 }
     }
 
     pub fn legal_actions(&self, _player: PlayerId) -> Vec<Action> {
@@ -101,7 +111,27 @@ impl GameEngine {
         while !self.state.stack.is_empty() && self.state.pending_choice.is_none() {
             if let Some(item) = self.state.stack.pop() {
                 let item_id = item.id;
-                // Future: emit item's effects as commands
+                
+                // Execute the effect and apply resulting commands
+                match crate::engine::effect_executor::execute_effect(
+                    &item.effect,
+                    item.source,
+                    item.controller,
+                    &self.state,
+                    Some(&self.scripting),
+                ) {
+                    Ok(commands) => {
+                        // Apply the commands and collect their events
+                        let effect_events = crate::engine::events::commit_commands(&mut self.state, &commands);
+                        events.extend(effect_events);
+                    }
+                    Err(_err) => {
+                        // Effect execution failed; silently continue resolving the stack.
+                        // Future: emit a dedicated Event to report the failure to callers
+                    }
+                }
+                
+                // Emit StackResolved event after executing effect
                 events.push(Event::StackResolved { item_id });
             }
         }

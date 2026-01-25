@@ -1,0 +1,87 @@
+# Example Cards with Keywords and Stats
+
+# This file demonstrates the new keywords and stats system
+# Cards can now declare keywords (must match rules.toml) and stats (key-value pairs)
+
+# Simple creature with keywords and stats
+[[cards]]
+id = "100"
+name = "Sky Dragon"
+card_type = "creature"
+cost = "4"
+description = "A majestic dragon that soars above the battlefield"
+keywords = ["flying", "quick"]
+
+[cards.stats]
+power = "3"
+toughness = "4"
+
+[[cards.abilities]]
+trigger = "etb"
+effect = "draw"
+[cards.abilities.params]
+amount = "1"
+
+# Creature with just stats, no keywords
+[[cards]]
+id = "101"
+name = "Grizzly Bear"
+card_type = "creature"
+cost = "2"
+description = "A fierce bear from the forest"
+
+[cards.stats]
+power = "2"
+toughness = "2"
+
+# Spell with quick keyword (can be played at instant speed)
+[[cards]]
+id = "102"
+name = "Lightning Strike"
+card_type = "spell"
+cost = "1"
+description = "Deal 3 damage to target player"
+keywords = ["quick"]
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "damage"
+[cards.abilities.params]
+amount = "3"
+
+# Creature with summoning sickness
+[[cards]]
+id = "103"
+name = "Eager Recruit"
+card_type = "creature"
+cost = "1"
+description = "A young recruit eager to fight"
+keywords = ["summoning_sick"]
+
+[cards.stats]
+power = "2"
+toughness = "1"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "gain_life"
+[cards.abilities.params]
+amount = "1"
+
+# Scripted creature with flying keyword
+[[cards]]
+id = "104"
+name = "Storm Elemental"
+card_type = "creature"
+cost = "5"
+description = "A powerful elemental that damages opponents when it enters"
+keywords = ["flying"]
+script_path = "examples/scripts/storm_elemental.rhai"
+
+[cards.stats]
+power = "4"
+toughness = "5"
+
+[[cards.abilities]]
+trigger = "etb"
+effect = "script:storm_elemental"

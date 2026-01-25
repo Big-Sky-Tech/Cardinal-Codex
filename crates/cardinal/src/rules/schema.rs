@@ -161,6 +161,15 @@ pub struct CardDef {
     /// Abilities this card has (triggered effects)
     #[serde(default)]
     pub abilities: Vec<CardAbility>,
+    /// Optional path to Rhai script file for scripted behavior
+    #[serde(default)]
+    pub script_path: Option<String>,
+    /// Keywords this card has (must reference keyword IDs from rules.keywords)
+    #[serde(default)]
+    pub keywords: Vec<String>,
+    /// Card stats (e.g., power/toughness for creatures, generic key-value pairs)
+    #[serde(default)]
+    pub stats: std::collections::HashMap<String, String>,
 }
 
 /// An ability on a card that can be triggered
