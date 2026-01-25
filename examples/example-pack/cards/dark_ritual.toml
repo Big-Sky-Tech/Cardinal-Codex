@@ -1,8 +1,9 @@
+id = "dark_ritual"
 name = "Dark Ritual"
 card_type = "Spell"
-cost = 1
+cost = "1"
 description = "Add 3 mana to your mana pool."
 
 [stats]
-power = 0
-toughness = 0
+power = "0"
+toughness = "0"
