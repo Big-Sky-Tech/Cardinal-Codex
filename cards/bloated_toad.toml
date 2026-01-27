@@ -1,0 +1,12 @@
+id = "5"
+name = "Bloated Toad"
+card_type = "creature"
+cost = "3G"
+description = "A large amphibian."
+
+[[abilities]]
+trigger = "etb"
+effect = "draw"
+
+[abilities.params]
+amount = "1"

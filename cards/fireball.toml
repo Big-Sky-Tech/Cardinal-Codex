@@ -1,0 +1,13 @@
+id = "4"
+name = "Fireball"
+card_type = "spell"
+cost = "2R"
+description = "Deals damage to target."
+
+[[abilities]]
+trigger = "on_play"
+effect = "damage"
+
+[abilities.params]
+amount = "2"
+target = "opponent"

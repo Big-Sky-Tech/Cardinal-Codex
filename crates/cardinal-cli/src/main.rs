@@ -77,16 +77,17 @@ fn run_game(rules_path: &str) {
     println!("Welcome to Cardinal - A Rules Engine TCG!");
     println!();
 
-    // Load rules
-    let rules = match cardinal::load_rules(rules_path) {
+    // Load rules and cards
+    let rules = match cardinal::load_game_config(rules_path, None) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("Failed to load rules: {:?}", e);
+            eprintln!("Failed to load game config: {:?}", e);
             return;
         }
     };
 
     println!("✓ Rules loaded: {}", rules.game.name);
+    println!("✓ Cards loaded: {}", rules.cards.len());
     println!();
 
     // Create initial game state

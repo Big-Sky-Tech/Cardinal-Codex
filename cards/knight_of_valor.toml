@@ -1,0 +1,12 @@
+id = "3"
+name = "Knight of Valor"
+card_type = "creature"
+cost = "2W"
+description = "A valiant knight."
+
+[[abilities]]
+trigger = "etb"
+effect = "gain_life"
+
+[abilities.params]
+amount = "2"

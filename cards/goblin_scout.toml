@@ -1,0 +1,13 @@
+id = "1"
+name = "Goblin Scout"
+card_type = "creature"
+cost = "1R"
+description = "A small but feisty goblin."
+
+[[abilities]]
+trigger = "etb"
+effect = "damage"
+
+[abilities.params]
+amount = "1"
+target = "opponent"

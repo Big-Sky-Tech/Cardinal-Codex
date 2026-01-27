@@ -71,7 +71,7 @@ cargo test
 → Read [crates/cardinal/README.md](crates/cardinal/README.md) for API documentation and integration examples.
 
 **"I want to modify the rules or add new cards"**
-→ Edit [rules.toml](rules.toml) to define new cards and change game mechanics.
+→ Edit [rules.toml](rules.toml) to change game mechanics, and add card `.toml` files to the [cards/](cards/) directory.
 
 **"I want to understand the codebase"**
 → Start with [crates/cardinal/layout.md](crates/cardinal/layout.md) for the file structure, then explore [crates/cardinal/explanation.md](crates/cardinal/explanation.md) for detailed design patterns.
@@ -190,7 +190,11 @@ Card abilities that fire automatically:
 Cardinal-Codex/
 ├─ README.md (this file)
 ├─ ARCHITECTURE.md (deep dive into design)
-├─ rules.toml (game definitions)
+├─ rules.toml (game definitions - no longer includes card data)
+├─ cards/ (card definition files)
+│  ├─ goblin_scout.toml
+│  ├─ fireball.toml
+│  └─ ... (one file per card)
 │
 ├─ crates/
 │  ├─ cardinal/ (the game engine library)
@@ -208,6 +212,9 @@ Cardinal-Codex/
 │  │  │  │  └─ command.rs
 │  │  │  ├─ state/ (game state)
 │  │  │  ├─ rules/ (rules schema from TOML)
+│  │  │  │  ├─ schema.rs (rules definitions)
+│  │  │  │  └─ card_loader.rs (card loading utilities)
+│  │  │  ├─ pack/ (ccpack system for distributing cards)
 │  │  │  ├─ display.rs (terminal rendering)
 │  │  │  └─ ...
 │  │  ├─ tests/
@@ -223,6 +230,149 @@ Cardinal-Codex/
 │
 └─ Cargo.toml (workspace config)
 ```
+
+---
+
+## Card Loading System
+
+Cardinal separates **game rules** from **card definitions** for better organization. Cards can be loaded from three different sources:
+
+**Important:** When using default loading (no explicit sources), a project should use **either** `cards.toml` **or** `cards/` directory, not both:
+- If `cards/` directory exists, it takes priority and `cards.toml` is ignored
+- If `cards/` directory doesn't exist, `cards.toml` is used
+- You can explicitly combine sources when needed using `CardSource`
+
+**Script Organization:**
+- When using **`cards.toml`** (single file): scripts go in `scripts/` directory
+- When using **`cards/` directory**: scripts can go in `cards/scripts/` or project-specific structure
+
+### Card Loading Methods
+
+**Method 1: Single TOML File (cards.toml)**
+
+Load multiple cards from a single file containing a `[[cards]]` array. Scripts should be organized in a `scripts/` directory:
+
+```
+project/
+├── rules.toml
+├── cards.toml          # All cards in one file
+└── scripts/            # Scripts for cards.toml
+    ├── fireball.rhai
+    └── healing.rhai
+```
+
+```toml
+# cards.toml
+[[cards]]
+id = "1"
+name = "Goblin Scout"
+card_type = "creature"
+cost = "1R"
+
+[[cards]]
+id = "2"
+name = "Fireball"
+card_type = "spell"
+cost = "2R"
+script_path = "scripts/fireball.rhai"  # Reference script in scripts/ directory
+```
+
+```rust
+use cardinal::{load_game_config, CardSource};
+
+// Explicit loading
+let sources = vec![CardSource::File("./cards.toml".into())];
+let ruleset = load_game_config("./rules.toml", Some(sources))?;
+
+// Or use default (if cards/ directory doesn't exist)
+let ruleset = load_game_config("./rules.toml", None)?;
+```
+
+**Method 2: Individual Files in Directory**
+
+Each card in its own `.toml` file within a `cards/` directory. Scripts can be organized within the cards directory structure:
+
+```
+project/
+├── rules.toml
+└── cards/              # Individual card files
+    ├── goblin_scout.toml
+    ├── fireball.toml
+    ├── knight_of_valor.toml
+    └── scripts/        # Scripts for individual cards (optional)
+        ├── fireball.rhai
+        └── healing.rhai
+```
+
+```toml
+# cards/goblin_scout.toml
+id = "1"
+name = "Goblin Scout"
+card_type = "creature"
+cost = "1R"
+description = "A small but feisty goblin."
+
+[[abilities]]
+trigger = "etb"
+effect = "damage"
+
+[abilities.params]
+amount = "1"
+target = "opponent"
+```
+
+```rust
+use cardinal::{load_game_config, CardSource};
+
+// Explicit directory
+let sources = vec![CardSource::Directory("./cards".into())];
+let ruleset = load_game_config("./rules.toml", Some(sources))?;
+
+// Or use default (auto-loads from cards/ directory)
+let ruleset = load_game_config("./rules.toml", None)?;
+```
+
+**Method 3: Compressed .ccpack Files**
+
+Distribute cards as compressed archives:
+
+```rust
+use cardinal::{load_game_config, CardSource};
+
+let sources = vec![CardSource::Pack("./expansions/set1.ccpack".into())];
+let ruleset = load_game_config("./rules.toml", Some(sources))?;
+```
+
+**Combining Multiple Sources (Advanced)**
+
+When you explicitly specify sources, you can combine methods. However, for typical projects, use **either** `cards.toml` **or** `cards/` directory:
+
+```rust
+use cardinal::{load_game_config, CardSource};
+
+// Advanced: Explicitly combine base cards + expansion pack
+let sources = vec![
+    CardSource::Directory("./cards".into()),        // Base set
+    CardSource::Pack("./expansions/set1.ccpack".into()), // Expansion
+];
+
+let ruleset = load_game_config("./rules.toml", Some(sources))?;
+```
+
+**Note:** When using default loading (`None`), only one card source is used automatically:
+- Priority 1: `cards/` directory (if it exists)
+- Priority 2: `cards.toml` file (if `cards/` doesn't exist)
+
+### Directory Structure
+
+**rules.toml** — Defines the game structure:
+- Zones (hand, field, graveyard)
+- Turn phases and steps
+- Resources and costs
+- Win/loss conditions
+- Keywords and trigger types
+
+See [PACK_SYSTEM.md](PACK_SYSTEM.md) for details on creating and using `.ccpack` files.
 
 ---
 
