@@ -16,6 +16,7 @@ pub use model::action::Action;
 pub use model::command::Command;
 pub use model::event::Event;
 pub use rules::schema::Ruleset;
+pub use rules::card_loader::CardSource;
 pub use rules::RulesModule;
 pub use state::gamestate::GameState;
 pub use util::rng::GameRng;
@@ -26,9 +27,59 @@ use std::path::Path;
 
 use crate::error::CardinalError;
 use crate::rules::schema::Ruleset as RulesetToml;
+use crate::rules::card_loader::{load_cards_from_sources, validate_unique_card_ids};
 
 /// Load a `Ruleset` from a TOML file. Returns a conservative `CardinalError` on failure.
 pub fn load_rules<P: AsRef<Path>>(path: P) -> Result<RulesetToml, CardinalError> {
     let content = fs::read_to_string(path).map_err(|e| CardinalError(format!("Failed to read rules file: {}", e)))?;
     toml::from_str(&content).map_err(|e| CardinalError(format!("Failed to parse TOML: {}", e)))
+}
+
+/// Load a complete game configuration with rules and cards from separate sources
+///
+/// This function loads the rules from a TOML file and then loads cards from the specified sources.
+/// The cards are validated for unique IDs and then added to the ruleset.
+///
+/// # Arguments
+/// * `rules_path` - Path to the rules.toml file
+/// * `card_sources` - Optional list of card sources (directories or packs). If None, looks for a `cards/` directory next to rules.toml
+///
+/// # Returns
+/// A complete Ruleset with rules and cards loaded
+pub fn load_game_config<P: AsRef<Path>>(
+    rules_path: P,
+    card_sources: Option<Vec<CardSource>>,
+) -> Result<RulesetToml, CardinalError> {
+    let rules_path = rules_path.as_ref();
+    
+    // Load base rules
+    let mut ruleset = load_rules(rules_path)?;
+    
+    // Determine card sources
+    let sources = if let Some(sources) = card_sources {
+        sources
+    } else {
+        // Default: look for cards/ directory next to rules.toml
+        let rules_dir = rules_path.parent().unwrap_or_else(|| Path::new("."));
+        let cards_dir = rules_dir.join("cards");
+        
+        if cards_dir.exists() {
+            vec![CardSource::Directory(cards_dir.to_string_lossy().to_string())]
+        } else {
+            Vec::new()
+        }
+    };
+    
+    // Load cards from sources
+    let cards = load_cards_from_sources(&sources)
+        .map_err(|e| CardinalError(format!("Failed to load cards: {}", e)))?;
+    
+    // Validate unique card IDs
+    validate_unique_card_ids(&cards)
+        .map_err(|e| CardinalError(format!("Card validation failed: {}", e)))?;
+    
+    // Add cards to ruleset
+    ruleset.cards = cards;
+    
+    Ok(ruleset)
 }

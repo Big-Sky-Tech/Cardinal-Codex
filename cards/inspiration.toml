@@ -1,0 +1,12 @@
+id = "2"
+name = "Inspiration"
+card_type = "spell"
+cost = "1U"
+description = "Draw a card."
+
+[[abilities]]
+trigger = "on_play"
+effect = "draw"
+
+[abilities.params]
+amount = "1"

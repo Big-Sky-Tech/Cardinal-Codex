@@ -3,9 +3,15 @@ use cardinal::*;
 use cardinal::ids::PlayerId;
 use cardinal::model::action::Action;
 
+/// Helper function to load rules and cards for tests
+fn load_test_rules() -> cardinal::Ruleset {
+    // Use load_game_config to load rules.toml and cards from cards/ directory
+    cardinal::load_game_config("../../rules.toml", None).expect("load game config")
+}
+
 #[test]
 fn build_engine_from_rules() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let engine = GameEngine::from_ruleset(rules, 42);
     // basic sanity: at least one player present
     assert!(!engine.state.players.is_empty());
@@ -13,7 +19,7 @@ fn build_engine_from_rules() {
 
 #[test]
 fn test_phase_advancement() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let mut engine = GameEngine::from_ruleset(rules.clone(), 42);
     
     let initial_phase = engine.state.turn.phase.clone();
@@ -37,7 +43,7 @@ fn test_phase_advancement() {
 
 #[test]
 fn test_phase_progression_full_turn() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let mut engine = GameEngine::from_ruleset(rules.clone(), 42);
     
     let initial_turn = engine.state.turn.number;
@@ -74,7 +80,7 @@ fn test_phase_progression_full_turn() {
 
 #[test]
 fn test_legality_active_player_restriction() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let mut engine = GameEngine::from_ruleset(rules, 42);
     
     // Only player 0 should be able to play cards (active player)
@@ -106,7 +112,7 @@ fn test_legality_active_player_restriction() {
 
 #[test]
 fn test_legality_phase_restrictions() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let mut engine = GameEngine::from_ruleset(rules.clone(), 42);
     
     // Find a phase that does NOT allow actions
@@ -145,7 +151,7 @@ fn test_legality_phase_restrictions() {
 
 #[test]
 fn test_legality_zone_ownership() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let mut engine = GameEngine::from_ruleset(rules, 42);
     
     if engine.state.players.len() > 1 {
@@ -176,7 +182,7 @@ fn test_legality_zone_ownership() {
 
 #[test]
 fn test_pass_priority_requires_priority() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let mut engine = GameEngine::from_ruleset(rules, 42);
     
     // The priority player should be able to pass
@@ -195,7 +201,7 @@ fn test_pass_priority_requires_priority() {
 
 #[test]
 fn test_play_card_action() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let mut engine = GameEngine::from_ruleset(rules.clone(), 42);
     
     // Find the main phase where actions are allowed
@@ -279,7 +285,7 @@ fn test_play_card_action() {
 
 #[test]
 fn test_play_card_requires_empty_stack() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let mut engine = GameEngine::from_ruleset(rules.clone(), 42);
     
     let active_player = engine.state.turn.active_player;
@@ -317,7 +323,7 @@ fn test_play_card_requires_empty_stack() {
 
 #[test]
 fn test_concede_action() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let mut engine = GameEngine::from_ruleset(rules, 42);
     
     let player_0 = PlayerId(0);
@@ -337,7 +343,7 @@ fn test_concede_action() {
 
 #[test]
 fn test_priority_rotation() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let mut engine = GameEngine::from_ruleset(rules, 42);
     
     let num_players = engine.state.players.len() as u32;
@@ -372,7 +378,7 @@ fn test_priority_rotation() {
 
 #[test]
 fn test_priority_passes_tracked() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let mut engine = GameEngine::from_ruleset(rules, 42);
     
     // Initially, priority_passes should be 0
@@ -390,7 +396,7 @@ fn test_priority_passes_tracked() {
 
 #[test]
 fn test_trigger_evaluation_on_card_play() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let mut engine = GameEngine::from_ruleset(rules, 42);
     
     // Get the active player (normally player 0)
@@ -439,7 +445,7 @@ fn test_trigger_evaluation_on_card_play() {
 
 #[test]
 fn test_game_initialization_creates_decks() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let initial_state = GameState::from_ruleset(&rules);
     
     // Create test cards for each player's deck
@@ -493,7 +499,7 @@ fn test_game_initialization_creates_decks() {
 
 #[test]
 fn test_game_initialization_draws_starting_hands() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let initial_state = GameState::from_ruleset(&rules);
     let starting_hand_size = rules.players.starting_hand_size;
     
@@ -553,7 +559,7 @@ fn test_game_initialization_draws_starting_hands() {
 
 #[test]
 fn test_game_initialization_determines_first_player() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let initial_state = GameState::from_ruleset(&rules);
     
     let mut state = initial_state.clone();
@@ -592,7 +598,7 @@ fn test_game_initialization_determines_first_player() {
 
 #[test]
 fn test_game_initialization_preserves_priority() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let initial_state = GameState::from_ruleset(&rules);
     
     let mut state = initial_state.clone();
@@ -625,7 +631,7 @@ fn test_game_initialization_preserves_priority() {
 
 #[test]
 fn test_card_ability_etb_trigger() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let mut engine = GameEngine::from_ruleset(rules.clone(), 42);
     
     // Set engine to a phase that allows actions
@@ -684,7 +690,7 @@ fn test_card_ability_etb_trigger() {
 
 #[test]
 fn test_card_registry_lookup() {
-    let rules = load_rules("../../rules.toml").expect("load rules");
+    let rules = load_test_rules();
     let engine = GameEngine::from_ruleset(rules, 42);
     
     // Verify that card registry was built correctly

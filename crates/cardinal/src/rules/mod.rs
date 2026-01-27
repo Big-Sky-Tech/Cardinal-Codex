@@ -1,5 +1,6 @@
 pub mod schema;
 pub mod query;
+pub mod card_loader;
 
 use crate::rules::schema::Ruleset;
 use crate::state::gamestate::GameState;
