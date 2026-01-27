@@ -42,7 +42,14 @@ pub fn load_rules<P: AsRef<Path>>(path: P) -> Result<RulesetToml, CardinalError>
 ///
 /// # Arguments
 /// * `rules_path` - Path to the rules.toml file
-/// * `card_sources` - Optional list of card sources (directories or packs). If None, looks for a `cards/` directory next to rules.toml
+/// * `card_sources` - Optional list of card sources (directories or packs). If None, uses default behavior:
+///   - If `cards/` directory exists, loads from it (takes priority)
+///   - Otherwise, if `cards.toml` file exists, loads from it
+///   - Otherwise, no cards are loaded
+///
+/// # Note
+/// When using default behavior (card_sources = None), the `cards/` directory takes priority.
+/// If both `cards/` directory and `cards.toml` file exist, only the directory is used.
 ///
 /// # Returns
 /// A complete Ruleset with rules and cards loaded
@@ -59,12 +66,18 @@ pub fn load_game_config<P: AsRef<Path>>(
     let sources = if let Some(sources) = card_sources {
         sources
     } else {
-        // Default: look for cards/ directory next to rules.toml
+        // Default: look for cards/ directory first, then cards.toml file
+        // Priority: cards/ directory > cards.toml file
         let rules_dir = rules_path.parent().unwrap_or_else(|| Path::new("."));
         let cards_dir = rules_dir.join("cards");
+        let cards_file = rules_dir.join("cards.toml");
         
-        if cards_dir.exists() {
+        if cards_dir.exists() && cards_dir.is_dir() {
+            // Priority 1: cards/ directory
             vec![CardSource::Directory(cards_dir)]
+        } else if cards_file.exists() && cards_file.is_file() {
+            // Priority 2: cards.toml file (only if cards/ directory doesn't exist)
+            vec![CardSource::File(cards_file)]
         } else {
             Vec::new()
         }

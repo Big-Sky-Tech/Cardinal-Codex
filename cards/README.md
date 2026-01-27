@@ -2,15 +2,33 @@
 
 This directory contains individual card definition files for Cardinal Codex.
 
-Cardinal supports **three methods** for loading cards:
+Cardinal supports **three methods** for loading cards. For typical projects, use **either** `cards.toml` **or** the `cards/` directory:
+
+- **Priority 1:** If `cards/` directory exists, it is used (and `cards.toml` is ignored)
+- **Priority 2:** If `cards/` doesn't exist, `cards.toml` is used (if it exists)
+- **Advanced:** You can explicitly combine sources using `CardSource`
+
+**Script Organization:**
+- When using **`cards.toml`**: Place scripts in a `scripts/` directory at the project root
+- When using **`cards/` directory**: Place scripts in `cards/scripts/` subdirectory
 
 ## Loading Methods
 
 ### Method 1: Single cards.toml File
 
-Create a single `cards.toml` file with multiple `[[cards]]` entries:
+Create a single `cards.toml` file with multiple `[[cards]]` entries (in the parent directory, not this one). When using this method, **scripts must go in a `scripts/` directory**:
+
+```
+project/
+├── rules.toml
+├── cards.toml          # All cards in one file
+└── scripts/            # Scripts go here when using cards.toml
+    ├── fireball.rhai
+    └── healing.rhai
+```
 
 ```toml
+# cards.toml (in project root)
 [[cards]]
 id = "1"
 name = "Goblin Scout"
@@ -22,18 +40,35 @@ id = "2"
 name = "Fireball"
 card_type = "spell"
 cost = "2R"
+script_path = "scripts/fireball.rhai"  # Reference script in scripts/ directory
 ```
 
-Load it with:
+**When to use:** Small projects with few cards, or when you prefer a single file.
+
+**Note:** This method is **automatically ignored** if the `cards/` directory exists.
+
+Load it explicitly:
 ```rust
 use cardinal::{load_game_config, CardSource};
 let sources = vec![CardSource::File("./cards.toml".into())];
 let ruleset = load_game_config("./rules.toml", Some(sources))?;
 ```
 
-### Method 2: Individual Files in Directory (This Directory)
+### Method 2: Individual Files in Directory (This Directory) ⭐ Recommended
 
-Each card is defined in its own `.toml` file. Cards are automatically loaded by the engine when the game starts.
+Each card is defined in its own `.toml` file in this directory. This is the **recommended approach** for most projects. When using this method, **scripts can go in a `cards/scripts/` subdirectory**:
+
+```
+project/
+├── rules.toml
+└── cards/              # This directory
+    ├── goblin_scout.toml
+    ├── fireball.toml
+    ├── knight_of_valor.toml
+    └── scripts/        # Scripts go here when using cards/ directory
+        ├── fireball.rhai
+        └── healing.rhai
+```
 
 ```toml
 # cards/goblin_scout.toml
@@ -103,18 +138,20 @@ let ruleset = load_game_config("./rules.toml", Some(sources))?;
 
 See [PACK_SYSTEM.md](../PACK_SYSTEM.md) for more details.
 
-## Combine Multiple Sources
+## Combining Sources (Advanced)
 
-You can load cards from all three methods simultaneously:
+For typical projects, use **either** `cards.toml` **or** `cards/` directory. However, you can explicitly combine sources for advanced scenarios like base set + expansion packs:
 
 ```rust
 use cardinal::{load_game_config, CardSource};
 
+// Base cards from directory + expansion pack
 let sources = vec![
-    CardSource::File("./cards.toml".into()),
     CardSource::Directory("./cards".into()),
     CardSource::Pack("./expansion.ccpack".into()),
 ];
 
 let ruleset = load_game_config("./rules.toml", Some(sources))?;
 ```
+
+**Remember:** When using default loading (no explicit sources), the `cards/` directory takes priority over `cards.toml`.
