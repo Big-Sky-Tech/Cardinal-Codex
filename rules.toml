@@ -9,8 +9,12 @@
 # - resources & costs
 # - win / loss conditions
 #
-# Card definitions would live in a separate file
-# and reference: zone ids, action ids, keyword ids, etc.
+# Card definitions live in the cards/ directory
+# Each card is a separate .toml file that references
+# zone ids, action ids, keyword ids, etc. defined here.
+#
+# Cards can also be loaded from .ccpack files.
+# See PACK_SYSTEM.md for details.
 # ===========================================
 
 [game]

@@ -71,7 +71,7 @@ cargo test
 → Read [crates/cardinal/README.md](crates/cardinal/README.md) for API documentation and integration examples.
 
 **"I want to modify the rules or add new cards"**
-→ Edit [rules.toml](rules.toml) to define new cards and change game mechanics.
+→ Edit [rules.toml](rules.toml) to change game mechanics, and add card `.toml` files to the [cards/](cards/) directory.
 
 **"I want to understand the codebase"**
 → Start with [crates/cardinal/layout.md](crates/cardinal/layout.md) for the file structure, then explore [crates/cardinal/explanation.md](crates/cardinal/explanation.md) for detailed design patterns.
@@ -190,7 +190,11 @@ Card abilities that fire automatically:
 Cardinal-Codex/
 ├─ README.md (this file)
 ├─ ARCHITECTURE.md (deep dive into design)
-├─ rules.toml (game definitions)
+├─ rules.toml (game definitions - no longer includes card data)
+├─ cards/ (card definition files)
+│  ├─ goblin_scout.toml
+│  ├─ fireball.toml
+│  └─ ... (one file per card)
 │
 ├─ crates/
 │  ├─ cardinal/ (the game engine library)
@@ -208,6 +212,9 @@ Cardinal-Codex/
 │  │  │  │  └─ command.rs
 │  │  │  ├─ state/ (game state)
 │  │  │  ├─ rules/ (rules schema from TOML)
+│  │  │  │  ├─ schema.rs (rules definitions)
+│  │  │  │  └─ card_loader.rs (card loading utilities)
+│  │  │  ├─ pack/ (ccpack system for distributing cards)
 │  │  │  ├─ display.rs (terminal rendering)
 │  │  │  └─ ...
 │  │  ├─ tests/
@@ -223,6 +230,76 @@ Cardinal-Codex/
 │
 └─ Cargo.toml (workspace config)
 ```
+
+---
+
+## Card Loading System
+
+Cardinal separates **game rules** from **card definitions** for better organization:
+
+### Directory Structure
+
+**rules.toml** — Defines the game structure:
+- Zones (hand, field, graveyard)
+- Turn phases and steps
+- Resources and costs
+- Win/loss conditions
+- Keywords and trigger types
+
+**cards/** directory — Contains individual card files:
+```
+cards/
+  ├─ goblin_scout.toml
+  ├─ fireball.toml
+  └─ knight_of_valor.toml
+```
+
+Each card file defines a single card:
+
+```toml
+id = "1"
+name = "Goblin Scout"
+card_type = "creature"
+cost = "1R"
+description = "A small but feisty goblin."
+
+[[abilities]]
+trigger = "etb"
+effect = "damage"
+
+[abilities.params]
+amount = "1"
+target = "opponent"
+```
+
+### Loading Cards
+
+Cardinal automatically loads cards from the `cards/` directory when you use `load_game_config`:
+
+```rust
+use cardinal::load_game_config;
+
+// Loads rules.toml and all .toml files from cards/ directory
+let ruleset = load_game_config("./rules.toml", None)?;
+println!("Loaded {} cards", ruleset.cards.len());
+```
+
+### Loading from .ccpack Files
+
+You can also distribute cards as compressed `.ccpack` files:
+
+```rust
+use cardinal::{load_game_config, CardSource};
+
+let sources = vec![
+    CardSource::Directory("./cards".to_string()),
+    CardSource::Pack("./expansions/set1.ccpack".to_string()),
+];
+
+let ruleset = load_game_config("./rules.toml", Some(sources))?;
+```
+
+See [PACK_SYSTEM.md](PACK_SYSTEM.md) for details on creating and using `.ccpack` files.
 
 ---
 
