@@ -64,7 +64,7 @@ pub fn load_game_config<P: AsRef<Path>>(
         let cards_dir = rules_dir.join("cards");
         
         if cards_dir.exists() {
-            vec![CardSource::Directory(cards_dir.to_string_lossy().to_string())]
+            vec![CardSource::Directory(cards_dir)]
         } else {
             Vec::new()
         }

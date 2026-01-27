@@ -292,8 +292,8 @@ You can also distribute cards as compressed `.ccpack` files:
 use cardinal::{load_game_config, CardSource};
 
 let sources = vec![
-    CardSource::Directory("./cards".to_string()),
-    CardSource::Pack("./expansions/set1.ccpack".to_string()),
+    CardSource::Directory("./cards".into()),
+    CardSource::Pack("./expansions/set1.ccpack".into()),
 ];
 
 let ruleset = load_game_config("./rules.toml", Some(sources))?;

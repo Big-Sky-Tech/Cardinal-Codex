@@ -7,7 +7,7 @@
 
 use anyhow::{Context, Result};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use crate::rules::schema::CardDef;
@@ -32,10 +32,22 @@ pub fn load_cards_from_dir<P: AsRef<Path>>(cards_dir: P) -> Result<Vec<CardDef>>
     let mut cards = Vec::new();
 
     for entry in WalkDir::new(cards_dir)
-        .follow_links(true)
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_entry(|e| {
+            // Skip hidden directories and files
+            e.file_name()
+                .to_str()
+                .map(|s| !s.starts_with('.'))
+                .unwrap_or(false)
+        })
     {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(e) => {
+                eprintln!("Warning: Failed to read directory entry: {}", e);
+                continue;
+            }
+        };
         let path = entry.path();
         
         // Only process .toml files
@@ -103,11 +115,11 @@ pub fn load_cards_from_sources(sources: &[CardSource]) -> Result<Vec<CardDef>> {
     let mut all_cards = Vec::new();
 
     for source in sources {
-        let mut cards = match source {
+        let cards = match source {
             CardSource::Directory(path) => load_cards_from_dir(path)?,
             CardSource::Pack(path) => load_cards_from_pack(path)?,
         };
-        all_cards.append(&mut cards);
+        all_cards.extend(cards);
     }
 
     Ok(all_cards)
@@ -117,9 +129,9 @@ pub fn load_cards_from_sources(sources: &[CardSource]) -> Result<Vec<CardDef>> {
 #[derive(Debug, Clone)]
 pub enum CardSource {
     /// Load cards from a directory containing .toml files
-    Directory(String),
+    Directory(PathBuf),
     /// Load cards from a .ccpack file
-    Pack(String),
+    Pack(PathBuf),
 }
 
 /// Validate that card IDs are unique
