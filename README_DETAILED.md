@@ -235,18 +235,40 @@ Cardinal-Codex/
 
 ## Card Loading System
 
-Cardinal separates **game rules** from **card definitions** for better organization:
+Cardinal separates **game rules** from **card definitions** for better organization. Cards can be loaded from three different sources:
 
-### Directory Structure
+### Card Loading Methods
 
-**rules.toml** — Defines the game structure:
-- Zones (hand, field, graveyard)
-- Turn phases and steps
-- Resources and costs
-- Win/loss conditions
-- Keywords and trigger types
+**Method 1: Single TOML File (cards.toml)**
 
-**cards/** directory — Contains individual card files:
+Load multiple cards from a single file containing a `[[cards]]` array:
+
+```toml
+# cards.toml
+[[cards]]
+id = "1"
+name = "Goblin Scout"
+card_type = "creature"
+cost = "1R"
+
+[[cards]]
+id = "2"
+name = "Fireball"
+card_type = "spell"
+cost = "2R"
+```
+
+```rust
+use cardinal::{load_game_config, CardSource};
+
+let sources = vec![CardSource::File("./cards.toml".into())];
+let ruleset = load_game_config("./rules.toml", Some(sources))?;
+```
+
+**Method 2: Individual Files in Directory**
+
+Each card in its own `.toml` file within a `cards/` directory:
+
 ```
 cards/
   ├─ goblin_scout.toml
@@ -254,9 +276,8 @@ cards/
   └─ knight_of_valor.toml
 ```
 
-Each card file defines a single card:
-
 ```toml
+# cards/goblin_scout.toml
 id = "1"
 name = "Goblin Scout"
 card_type = "creature"
@@ -272,32 +293,52 @@ amount = "1"
 target = "opponent"
 ```
 
-### Loading Cards
-
-Cardinal automatically loads cards from the `cards/` directory when you use `load_game_config`:
-
 ```rust
-use cardinal::load_game_config;
+use cardinal::{load_game_config, CardSource};
 
-// Loads rules.toml and all .toml files from cards/ directory
+// Explicit directory
+let sources = vec![CardSource::Directory("./cards".into())];
+let ruleset = load_game_config("./rules.toml", Some(sources))?;
+
+// Or use default (auto-loads from cards/ directory)
 let ruleset = load_game_config("./rules.toml", None)?;
-println!("Loaded {} cards", ruleset.cards.len());
 ```
 
-### Loading from .ccpack Files
+**Method 3: Compressed .ccpack Files**
 
-You can also distribute cards as compressed `.ccpack` files:
+Distribute cards as compressed archives:
+
+```rust
+use cardinal::{load_game_config, CardSource};
+
+let sources = vec![CardSource::Pack("./expansions/set1.ccpack".into())];
+let ruleset = load_game_config("./rules.toml", Some(sources))?;
+```
+
+**Combine All Methods**
+
+Load cards from multiple sources simultaneously:
 
 ```rust
 use cardinal::{load_game_config, CardSource};
 
 let sources = vec![
+    CardSource::File("./cards.toml".into()),
     CardSource::Directory("./cards".into()),
     CardSource::Pack("./expansions/set1.ccpack".into()),
 ];
 
 let ruleset = load_game_config("./rules.toml", Some(sources))?;
 ```
+
+### Directory Structure
+
+**rules.toml** — Defines the game structure:
+- Zones (hand, field, graveyard)
+- Turn phases and steps
+- Resources and costs
+- Win/loss conditions
+- Keywords and trigger types
 
 See [PACK_SYSTEM.md](PACK_SYSTEM.md) for details on creating and using `.ccpack` files.
 

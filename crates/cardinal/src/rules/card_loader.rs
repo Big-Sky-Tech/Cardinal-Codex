@@ -68,6 +68,52 @@ pub fn load_cards_from_dir<P: AsRef<Path>>(cards_dir: P) -> Result<Vec<CardDef>>
     Ok(cards)
 }
 
+/// Load card definitions from a single TOML file containing a [[cards]] array
+///
+/// This function loads multiple cards from a single TOML file that uses the [[cards]] array format.
+/// This is useful for loading a cards.toml file or similar.
+///
+/// # Arguments
+/// * `file_path` - Path to the TOML file containing card definitions
+///
+/// # Returns
+/// A vector of CardDef structs
+///
+/// # Example TOML format
+/// ```toml
+/// [[cards]]
+/// id = "1"
+/// name = "Goblin Scout"
+/// card_type = "creature"
+/// cost = "1R"
+///
+/// [[cards]]
+/// id = "2"
+/// name = "Fireball"
+/// card_type = "spell"
+/// cost = "2R"
+/// ```
+pub fn load_cards_from_file<P: AsRef<Path>>(file_path: P) -> Result<Vec<CardDef>> {
+    let file_path = file_path.as_ref();
+    
+    if !file_path.exists() {
+        return Ok(Vec::new());
+    }
+
+    #[derive(serde::Deserialize)]
+    struct CardsFile {
+        cards: Vec<CardDef>,
+    }
+
+    let content = std::fs::read_to_string(file_path)
+        .with_context(|| format!("Failed to read cards file: {}", file_path.display()))?;
+    
+    let cards_file: CardsFile = toml::from_str(&content)
+        .with_context(|| format!("Failed to parse cards file: {}", file_path.display()))?;
+    
+    Ok(cards_file.cards)
+}
+
 /// Load card definitions from a .ccpack file
 ///
 /// Extracts all `.toml` files from the `cards/` directory within the pack
@@ -116,6 +162,7 @@ pub fn load_cards_from_sources(sources: &[CardSource]) -> Result<Vec<CardDef>> {
 
     for source in sources {
         let cards = match source {
+            CardSource::File(path) => load_cards_from_file(path)?,
             CardSource::Directory(path) => load_cards_from_dir(path)?,
             CardSource::Pack(path) => load_cards_from_pack(path)?,
         };
@@ -128,6 +175,8 @@ pub fn load_cards_from_sources(sources: &[CardSource]) -> Result<Vec<CardDef>> {
 /// Enum representing different sources of card definitions
 #[derive(Debug, Clone)]
 pub enum CardSource {
+    /// Load cards from a single TOML file containing a [[cards]] array
+    File(PathBuf),
     /// Load cards from a directory containing .toml files
     Directory(PathBuf),
     /// Load cards from a .ccpack file
