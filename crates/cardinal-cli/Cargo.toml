@@ -1,8 +1,9 @@
 [package]
 name = "cardinal-cli"
-version = "0.1.0"
+version = "0.0.11"
 edition = "2024"
+description = "Command-line interface for Cardinal Kernel."
 
 [dependencies]
-cardinal = { path = "../cardinal" }
+cardinal = { path = "../cardinal", package = "cardinal-kernel", version = "0.1.1" }
 clap = { version = "4.5", features = ["derive"] }

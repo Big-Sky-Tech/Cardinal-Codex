@@ -1,8 +1,9 @@
+id = "healing_touch"
 name = "Healing Touch"
 card_type = "Spell"
-cost = 2
+cost = "2"
 description = "You gain 4 life."
 
 [stats]
-power = 0
-toughness = 0
+power = "0"
+toughness = "0"

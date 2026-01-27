@@ -1,8 +1,9 @@
+id = "storm_elemental"
 name = "Storm Elemental"
 card_type = "Creature"
-cost = 4
-text = "Flying. When Storm Elemental enters the battlefield, deal 2 damage to target creature."
+cost = "4"
+description = "Flying. When Storm Elemental enters the battlefield, deal 2 damage to target creature."
 
 [stats]
-power = 3
-toughness = 2
+power = "3"
+toughness = "2"
