@@ -53,7 +53,7 @@ impl RhaiEngine {
         });
         
         // Helper: lose_life(player: i32, amount: i32) -> Dynamic
-        // Distinct from damage - loss of life doesn't trigger damage effects
+        /// Loss of life (doesn't trigger damage effects, unlike deal_damage)
         engine.register_fn("lose_life", |player: i32, amount: i32| {
             let mut map = rhai::Map::new();
             map.insert("type".into(), Dynamic::from("lose_life"));
@@ -280,7 +280,8 @@ impl RhaiEngine {
         // ==============================================
         
         // Helper: bolt(target: i32, damage: i32) -> Dynamic
-        // Common pattern: simple direct damage
+        /// Common TCG pattern: simple direct damage
+        /// Note: Intentionally aliases deal_damage for familiar terminology
         engine.register_fn("bolt", |target: i32, damage: i32| {
             let mut map = rhai::Map::new();
             map.insert("type".into(), Dynamic::from("damage"));
@@ -600,5 +601,177 @@ mod tests {
         
         let commands = result.unwrap();
         assert_eq!(commands.len(), 1);
+    }
+    
+    #[test]
+    fn test_set_life_helper() {
+        let mut engine = RhaiEngine::new();
+        let script = r#"
+            fn execute_ability() {
+                set_life(1, 10)
+            }
+        "#;
+        
+        engine.register_script("set_life_card".to_string(), script).unwrap();
+        
+        let context = ScriptContext {
+            controller: 0,
+            source_card: 1,
+            active_player: None,
+            turn_number: None,
+            phase: None,
+        };
+        
+        let result = engine.execute_ability("set_life_card", context);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        // Verify the command structure
+        if let Some(map) = commands[0].clone().try_cast::<rhai::Map>() {
+            assert_eq!(map.get("type").unwrap().clone().try_cast::<String>().unwrap(), "set_life");
+        }
+    }
+    
+    #[test]
+    fn test_zone_manipulation_helpers() {
+        let mut engine = RhaiEngine::new();
+        let script = r#"
+            fn execute_ability() {
+                [
+                    move_card(5, "hand", "graveyard"),
+                    shuffle_zone(controller, "deck")
+                ]
+            }
+        "#;
+        
+        engine.register_script("zone_card".to_string(), script).unwrap();
+        
+        let context = ScriptContext {
+            controller: 0,
+            source_card: 1,
+            active_player: None,
+            turn_number: None,
+            phase: None,
+        };
+        
+        let result = engine.execute_ability("zone_card", context);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 2);
+    }
+    
+    #[test]
+    fn test_stat_helpers() {
+        let mut engine = RhaiEngine::new();
+        let script = r#"
+            fn execute_ability() {
+                [
+                    set_stats(source_card, 5, 5),
+                    set_stat(source_card, "element", "fire")
+                ]
+            }
+        "#;
+        
+        engine.register_script("stat_card".to_string(), script).unwrap();
+        
+        let context = ScriptContext {
+            controller: 0,
+            source_card: 1,
+            active_player: None,
+            turn_number: None,
+            phase: None,
+        };
+        
+        let result = engine.execute_ability("stat_card", context);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 2);
+    }
+    
+    #[test]
+    fn test_keyword_removal() {
+        let mut engine = RhaiEngine::new();
+        let script = r#"
+            fn execute_ability() {
+                remove_keyword(source_card, "flying")
+            }
+        "#;
+        
+        engine.register_script("remove_kw_card".to_string(), script).unwrap();
+        
+        let context = ScriptContext {
+            controller: 0,
+            source_card: 1,
+            active_player: None,
+            turn_number: None,
+            phase: None,
+        };
+        
+        let result = engine.execute_ability("remove_kw_card", context);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+    }
+    
+    #[test]
+    fn test_resource_helpers() {
+        let mut engine = RhaiEngine::new();
+        let script = r#"
+            fn execute_ability() {
+                set_resource(controller, "mana", 10)
+            }
+        "#;
+        
+        engine.register_script("resource_card".to_string(), script).unwrap();
+        
+        let context = ScriptContext {
+            controller: 0,
+            source_card: 1,
+            active_player: None,
+            turn_number: None,
+            phase: None,
+        };
+        
+        let result = engine.execute_ability("resource_card", context);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+    }
+    
+    #[test]
+    fn test_bolt_helper() {
+        let mut engine = RhaiEngine::new();
+        let script = r#"
+            fn execute_ability() {
+                bolt(1, 3)
+            }
+        "#;
+        
+        engine.register_script("bolt_card".to_string(), script).unwrap();
+        
+        let context = ScriptContext {
+            controller: 0,
+            source_card: 1,
+            active_player: None,
+            turn_number: None,
+            phase: None,
+        };
+        
+        let result = engine.execute_ability("bolt_card", context);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        // Verify bolt produces damage effect (intentional alias)
+        if let Some(map) = commands[0].clone().try_cast::<rhai::Map>() {
+            assert_eq!(map.get("type").unwrap().clone().try_cast::<String>().unwrap(), "damage");
+        }
     }
 }

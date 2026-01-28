@@ -331,9 +331,7 @@ fn execute_ability() {
 }
 ```
 
-## Complete Examples
-
-### Example 1: Simple Damage
+## Accessing TOML-Defined Attributes
 
 **File**: `scripts/shock.rhai`
 ```rhai

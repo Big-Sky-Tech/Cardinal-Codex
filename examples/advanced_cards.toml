@@ -5,7 +5,7 @@ id = "200"
 name = "Arcane Transmuter"
 card_type = "creature"
 cost = "4"
-description = "When this enters the battlefield, mill 2 cards from opponent's deck, gain 2 mana, draw a card, grant it flying, and add a +1/+1 counter to it."
+description = "When this enters the battlefield, mill 2 cards from opponent's deck, gain 2 mana, draw a card, grant itself flying, and add a +1/+1 counter to itself."
 script_path = "examples/scripts/arcane_transmuter.rhai"
 
 [cards.stats]
