@@ -1,28 +1,27 @@
 // Arcane Transmuter
 // A complex card demonstrating multiple helper functions
 // 
-// When played:
+// NOTE: Most of these helpers are not yet implemented in the executor.
+// This script will fail at runtime until executor support is added.
+// Only deal_damage and gain_life are currently functional.
+//
+// When fully implemented, this card will:
 // - Mill 2 cards from opponent's deck
-// - For each card milled, gain 1 mana
-// - Draw a card
-// - Grant this creature flying
+// - Gain 2 mana as a ritual effect
+// - Draw a card (cantrip)
+// - Grant flying keyword
 // - Add a +1/+1 counter
 
 fn execute_ability() {
     [
-        // Mill opponent's deck
-        mill_cards(1, 2),
+        // mill_cards(1, 2),  // Not yet implemented
+        // gain_resource(controller, "mana", 2),  // Not yet implemented
+        // draw_cards(controller, 1),  // Not yet implemented (validates only)
+        // grant_keyword(source_card, "flying"),  // Not yet implemented
+        // add_counter(source_card, "+1/+1", 1)  // Not yet implemented
         
-        // Gain mana as a ritual effect
-        gain_resource(controller, "mana", 2),
-        
-        // Draw a card (cantrip)
-        draw_cards(controller, 1),
-        
-        // Grant flying keyword
-        grant_keyword(source_card, "flying"),
-        
-        // Add a +1/+1 counter
-        add_counter(source_card, "+1/+1", 1)
+        // Currently only these work:
+        deal_damage(1, 2),
+        gain_life(controller, 2)
     ]
 }

@@ -604,6 +604,34 @@ mod tests {
     }
     
     #[test]
+    fn test_context_variables_none() {
+        let mut engine = RhaiEngine::new();
+        // Script that doesn't use optional variables
+        let script = r#"
+            fn execute_ability() {
+                // Only use guaranteed variables
+                gain_life(controller, 5)
+            }
+        "#;
+        
+        engine.register_script("safe_card".to_string(), script).unwrap();
+        
+        let context = ScriptContext {
+            controller: 0,
+            source_card: 1,
+            active_player: None,  // Optional fields not provided
+            turn_number: None,
+            phase: None,
+        };
+        
+        let result = engine.execute_ability("safe_card", context);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+    }
+    
+    #[test]
     fn test_set_life_helper() {
         let mut engine = RhaiEngine::new();
         let script = r#"

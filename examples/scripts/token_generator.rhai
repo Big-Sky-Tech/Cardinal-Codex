@@ -1,9 +1,14 @@
 // Token Generator
 // Create multiple tokens
+// NOTE: Not yet implemented in executor - will fail at runtime
 
 fn execute_ability() {
+    // create_token(controller, "soldier_token", "field"),  // Not yet implemented
+    // create_token(controller, "soldier_token", "field")   // Not yet implemented
+    
+    // Placeholder using implemented helper:
     [
-        create_token(controller, "soldier_token", "field"),
-        create_token(controller, "soldier_token", "field")
+        gain_life(controller, 1),
+        gain_life(controller, 1)
     ]
 }

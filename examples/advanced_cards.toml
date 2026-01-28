@@ -35,10 +35,11 @@ name = "Essence Drain"
 card_type = "spell"
 cost = "2"
 description = "Deal 3 damage to target player. You gain 3 life."
+script_path = "examples/scripts/essence_drain.rhai"
 
 [[cards.abilities]]
 trigger = "on_play"
-effect = "drain_3"
+effect = "script:essence_drain"
 
 [[cards]]
 id = "203"

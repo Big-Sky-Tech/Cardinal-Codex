@@ -98,7 +98,7 @@ fn execute_ability() {
 ```
 
 ##### `lose_life(player: i32, amount: i32)`
-A player loses life (distinct from damage - doesn't trigger damage effects).
+A player loses life (distinct from damage - doesn't trigger damage effects) - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -107,7 +107,7 @@ fn execute_ability() {
 ```
 
 ##### `set_life(player: i32, amount: i32)`
-Set a player's life to a specific value.
+Set a player's life to a specific value - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -127,7 +127,7 @@ fn execute_ability() {
 ```
 
 ##### `mill_cards(player: i32, count: i32)`
-Move cards from top of a player's deck to their graveyard.
+Move cards from top of a player's deck to their graveyard - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -136,7 +136,7 @@ fn execute_ability() {
 ```
 
 ##### `discard_cards(player: i32, count: i32)`
-Move cards from a player's hand to their graveyard.
+Move cards from a player's hand to their graveyard - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -145,7 +145,7 @@ fn execute_ability() {
 ```
 
 ##### `move_card(card: i32, from_zone: &str, to_zone: &str)`
-General purpose card movement between zones.
+General purpose card movement between zones - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -154,7 +154,7 @@ fn execute_ability() {
 ```
 
 ##### `shuffle_zone(player: i32, zone: &str)`
-Shuffle a zone (typically a deck).
+Shuffle a zone (typically a deck) - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -174,7 +174,7 @@ fn execute_ability() {
 ```
 
 ##### `set_stats(card: i32, power: i32, toughness: i32)`
-Set creature stats to specific values (not delta).
+Set creature stats to specific values (not delta) - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -183,7 +183,7 @@ fn execute_ability() {
 ```
 
 ##### `modify_stat(card: i32, stat_name: &str, delta: i32)`
-Modify any card stat by name (generic stat modification).
+Modify any card stat by name (generic stat modification) - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -192,7 +192,7 @@ fn execute_ability() {
 ```
 
 ##### `set_stat(card: i32, stat_name: &str, value: &str)`
-Set any card stat to a specific value.
+Set any card stat to a specific value - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -203,7 +203,7 @@ fn execute_ability() {
 #### Keyword Manipulation
 
 ##### `grant_keyword(card: i32, keyword: &str)`
-Grant a keyword to a card (e.g., "flying", "quick").
+Grant a keyword to a card (e.g., "flying", "quick") - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -212,7 +212,7 @@ fn execute_ability() {
 ```
 
 ##### `remove_keyword(card: i32, keyword: &str)`
-Remove a keyword from a card.
+Remove a keyword from a card - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -223,7 +223,7 @@ fn execute_ability() {
 #### Resource Manipulation
 
 ##### `gain_resource(player: i32, resource: &str, amount: i32)`
-Grant resources to a player (e.g., "mana", "action_points" from rules.toml).
+Grant resources to a player (e.g., "mana", "action_points" from rules.toml) - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -232,7 +232,7 @@ fn execute_ability() {
 ```
 
 ##### `spend_resource(player: i32, resource: &str, amount: i32)`
-Spend/consume resources.
+Spend/consume resources - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -241,7 +241,7 @@ fn execute_ability() {
 ```
 
 ##### `set_resource(player: i32, resource: &str, amount: i32)`
-Set resource to a specific value.
+Set resource to a specific value - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -252,7 +252,7 @@ fn execute_ability() {
 #### Token & Card Creation
 
 ##### `create_token(player: i32, token_type: &str, zone: &str)`
-Create a token card in a specified zone.
+Create a token card in a specified zone - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -263,7 +263,7 @@ fn execute_ability() {
 #### Counter & Marker Manipulation
 
 ##### `add_counter(card: i32, counter_type: &str, amount: i32)`
-Add counters to a card (e.g., +1/+1 counters, charge counters).
+Add counters to a card (e.g., +1/+1 counters, charge counters) - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -272,7 +272,7 @@ fn execute_ability() {
 ```
 
 ##### `remove_counter(card: i32, counter_type: &str, amount: i32)`
-Remove counters from a card.
+Remove counters from a card - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -292,7 +292,7 @@ fn execute_ability() {
 ```
 
 ##### `drain(target: i32, amount: i32, controller: i32)`
-Common pattern: damage opponent and gain life.
+Common pattern: damage opponent and gain life - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -301,7 +301,7 @@ fn execute_ability() {
 ```
 
 ##### `cantrip(player: i32, effect: Dynamic)`
-Common pattern: effect + draw a card.
+Common pattern: effect + draw a card - **not yet implemented in executor**.
 
 ```rhai
 fn execute_ability() {
@@ -331,7 +331,9 @@ fn execute_ability() {
 }
 ```
 
-## Accessing TOML-Defined Attributes
+## Complete Examples
+
+### Example 1: Simple Damage
 
 **File**: `scripts/shock.rhai`
 ```rhai
@@ -573,8 +575,6 @@ fn execute_ability() {
 }
 ```
 
-## Complete Examples
-
 ## Script Execution Flow
 
 1. **Load Time**: During host initialization, scripts must be loaded and registered with the engine (e.g., via `engine.scripting.register_script(...)`). `GameEngine::new` / `from_ruleset` only construct an empty scripting engine and do **not** automatically load scripts from `script_path`.
@@ -614,11 +614,13 @@ Planned features for the scripting system:
    - 🔄 Query card counts in zones
    - 🔄 Access zone contents
 
-2. **TOML Attribute Access** (Complete):
-   - ✅ Zone manipulation (move_card, shuffle_zone, mill, discard)
-   - ✅ Resource access/modification (gain_resource, spend_resource, set_resource)
-   - ✅ Keyword manipulation (grant_keyword, remove_keyword)
-   - ✅ Custom stat modification (modify_stat, set_stat)
+2. **TOML Attribute Access** (Script Helpers Only):
+   - ✅ Script helper functions for zone manipulation (move_card, shuffle_zone, mill, discard)
+   - ✅ Script helper functions for resource access/modification (gain_resource, spend_resource, set_resource)
+   - ✅ Script helper functions for keyword manipulation (grant_keyword, remove_keyword)
+   - ✅ Script helper functions for custom stat modification (modify_stat, set_stat)
+   - 🔄 Effect executor integration (helpers return command maps but executor does not yet apply these effects)
+   - **Note**: Currently, scripts can call these helpers and generate commands, but the engine executor does not implement these command types. They will fail with "unknown effect type" errors until executor support is added.
 
 3. **Target Selection** (Planned):
    - 🔄 Request player input for targets
@@ -648,7 +650,6 @@ Planned features for the scripting system:
 Legend:
 - ✅ Complete
 - 🔄 Planned/In Progress
-- ❌ Not Started
 
 ## Troubleshooting
 
