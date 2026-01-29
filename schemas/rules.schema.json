@@ -45,10 +45,12 @@
           "minimum": 1
         },
         "starting_life": {
-          "type": "integer"
+          "type": "integer",
+          "minimum": 0
         },
         "max_life": {
-          "type": "integer"
+          "type": "integer",
+          "minimum": 0
         },
         "starting_hand_size": {
           "type": "integer",
@@ -101,7 +103,7 @@
           },
           "visibility": {
             "type": "string",
-            "enum": ["public", "private", "top_card_public"],
+            "enum": ["public", "private", "topcardpublic"],
             "description": "Who can see cards in this zone"
           },
           "ordered": {
@@ -138,10 +140,12 @@
             "type": "string"
           },
           "min_value": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 0
           },
           "max_value": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 0
           }
         },
         "additionalProperties": false
