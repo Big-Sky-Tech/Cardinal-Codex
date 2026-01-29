@@ -157,9 +157,7 @@ pub fn compile_pack<P: AsRef<Path>, Q: AsRef<Path>>(
     build_pack(pack_dir, output_path)
         .context("Failed to build pack")?;
 
-    if options.verbose {
-        println!("\n✓ Pack compiled successfully!");
-    }
+    // Note: build_pack already prints success message
 
     Ok(())
 }
