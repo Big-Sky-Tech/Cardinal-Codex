@@ -39,6 +39,45 @@ enum Commands {
         /// Output directory
         output: String,
     },
+    /// Validate game assets (rules, cards, scripts, or packs)
+    Validate {
+        #[command(subcommand)]
+        target: ValidateTarget,
+    },
+}
+
+#[derive(Subcommand)]
+enum ValidateTarget {
+    /// Validate a rules.toml file
+    Rules {
+        /// Path to rules.toml file
+        path: String,
+    },
+    /// Validate a single card TOML file
+    Card {
+        /// Path to card .toml file
+        path: String,
+    },
+    /// Validate a cards directory
+    CardsDir {
+        /// Path to cards directory
+        path: String,
+    },
+    /// Validate a cards.toml file
+    CardsFile {
+        /// Path to cards.toml file
+        path: String,
+    },
+    /// Validate a Rhai script file
+    Script {
+        /// Path to .rhai script file
+        path: String,
+    },
+    /// Validate a pack directory before building
+    Pack {
+        /// Path to pack directory
+        path: String,
+    },
 }
 
 fn main() {
@@ -65,6 +104,9 @@ fn main() {
                 eprintln!("Error unpacking: {}", e);
                 std::process::exit(1);
             }
+        }
+        Some(Commands::Validate { target }) => {
+            handle_validation(target);
         }
         None => {
             // Default: run the game with default rules
@@ -368,6 +410,79 @@ fn handle_pass_priority(engine: &mut GameEngine, display: &mut GameDisplay, play
         Err(e) => {
             println!("Cannot pass priority: {:?}", e);
         }
+    }
+}
+
+fn handle_validation(target: ValidateTarget) {
+    use cardinal::validation::*;
+
+    let result = match target {
+        ValidateTarget::Rules { path } => {
+            println!("Validating rules file: {}", path);
+            match validate_rules(&path) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("Validation error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        ValidateTarget::Card { path } => {
+            println!("Validating card file: {}", path);
+            match validate_card(&path) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("Validation error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        ValidateTarget::CardsDir { path } => {
+            println!("Validating cards directory: {}", path);
+            match validate_cards_dir(&path) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("Validation error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        ValidateTarget::CardsFile { path } => {
+            println!("Validating cards file: {}", path);
+            match validate_cards_file(&path) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("Validation error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        ValidateTarget::Script { path } => {
+            println!("Validating script file: {}", path);
+            match validate_script(&path) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("Validation error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        ValidateTarget::Pack { path } => {
+            println!("Validating pack directory: {}", path);
+            match validate_pack(&path) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("Validation error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+    };
+
+    print_validation_result(&result, "Asset");
+
+    if !result.is_valid {
+        std::process::exit(1);
     }
 }
 
