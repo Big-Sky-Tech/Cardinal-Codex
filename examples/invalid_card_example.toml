@@ -1,0 +1,33 @@
+# SCHEMA VALIDATION EXAMPLE
+# =======================
+# This file demonstrates Cardinal's TOML schema validation.
+#
+# To see validation in action:
+# 1. Open this file in VS Code
+# 2. Install the "Even Better TOML" extension (if prompted)
+# 3. Look for red squiggly lines showing validation errors
+#
+# This file intentionally has errors to demonstrate validation.
+# DO NOT use this as a template for real cards!
+
+# ERROR 1: Missing required field "card_type"
+# The schema requires: id, name, and card_type
+id = "invalid_example"
+name = "This Card Has Errors"
+# card_type is MISSING - VS Code should show this as an error!
+
+# ERROR 2: Invalid field name
+# The schema defines valid fields - anything else triggers an error
+invalid_field_name = "this field doesn't exist in the schema"
+# VS Code should highlight this as "Additional properties are not allowed"
+
+# For comparison, here's what a VALID card looks like:
+# Uncomment these lines to fix the errors:
+#
+# id = "example_card"
+# name = "Example Card"
+# card_type = "creature"    # Required!
+# cost = "1R"               # Optional
+# description = "A valid card with all required fields"
+#
+# See cards/goblin_scout.toml for a real example.

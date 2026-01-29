@@ -3,5 +3,12 @@
     "chat.editing.autoAcceptDelay": 1,
     "chat.edits2.enabled": true,
     "chat.mcp.assisted.nuget.enabled": true,
-    "chat.agent.maxRequests": 100
+    "chat.agent.maxRequests": 100,
+    "evenBetterToml.schema.associations": {
+        "**/cards/*.toml": "schemas/card.schema.json",
+        "examples/invalid_card_example.toml": "schemas/card.schema.json",
+        "**/cards.toml": "schemas/cards.schema.json",
+        "**/rules.toml": "schemas/rules.schema.json",
+        "**/pack.toml": "schemas/pack.schema.json"
+    }
 }

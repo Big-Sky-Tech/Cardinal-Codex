@@ -1,0 +1,420 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/Big-Sky-Tech/Cardinal-Codex/main/schemas/rules.schema.json",
+  "title": "Cardinal Ruleset",
+  "description": "Schema for rules.toml files defining game structure in the Cardinal rules engine",
+  "type": "object",
+  "required": ["game", "players", "zones", "resources", "turn", "actions", "stack", "trigger_kinds", "keywords", "win_conditions", "loss_conditions"],
+  "properties": {
+    "game": {
+      "type": "object",
+      "description": "Basic game information",
+      "required": ["id", "name", "version", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Game identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name"
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version",
+          "pattern": "^\\d+\\.\\d+\\.\\d+.*$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Game description"
+        }
+      },
+      "additionalProperties": false
+    },
+    "players": {
+      "type": "object",
+      "description": "Player-related rules",
+      "required": ["min_players", "max_players", "starting_life", "max_life", "starting_hand_size", "max_hand_size", "min_deck_size", "max_deck_size", "mulligan_rule", "first_player_rule"],
+      "properties": {
+        "min_players": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_players": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "starting_life": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_life": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "starting_hand_size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_hand_size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "min_deck_size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_deck_size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "mulligan_rule": {
+          "type": "string",
+          "description": "Mulligan rule type",
+          "examples": ["free_first", "redraw_minus_one", "none"]
+        },
+        "first_player_rule": {
+          "type": "string",
+          "description": "How first player is chosen",
+          "examples": ["random", "coin_flip", "loser_goes_first"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "zones": {
+      "type": "array",
+      "description": "Game zones (deck, hand, field, etc.)",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "owner_scope", "visibility", "ordered", "allow_duplicates"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique zone identifier"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name"
+          },
+          "owner_scope": {
+            "type": "string",
+            "enum": ["player", "shared"],
+            "description": "Whether zone belongs to a player or is shared"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": ["public", "private", "topcardpublic"],
+            "description": "Who can see cards in this zone"
+          },
+          "ordered": {
+            "type": "boolean",
+            "description": "Whether cards have a meaningful order"
+          },
+          "allow_duplicates": {
+            "type": "boolean",
+            "description": "Whether multiple copies of a card can exist"
+          },
+          "default_capacity": {
+            "type": "integer",
+            "description": "Soft or hard capacity limit",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "resources": {
+      "type": "array",
+      "description": "Game resources (mana, action points, etc.)",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "description", "min_value", "max_value"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "min_value": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_value": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "turn": {
+      "type": "object",
+      "description": "Turn structure definition",
+      "required": ["priority_system", "skip_first_turn_draw_for_first_player", "phases"],
+      "properties": {
+        "priority_system": {
+          "type": "boolean",
+          "description": "Whether the game uses priority-passing"
+        },
+        "skip_first_turn_draw_for_first_player": {
+          "type": "boolean",
+          "description": "Skip draw on first turn for starting player"
+        },
+        "phases": {
+          "type": "array",
+          "description": "Turn phases",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "order", "allow_actions", "steps"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "order": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "allow_actions": {
+                "type": "boolean"
+              },
+              "steps": {
+                "type": "array",
+                "description": "Steps within this phase",
+                "items": {
+                  "type": "object",
+                  "required": ["id", "name", "order", "allow_actions", "allow_triggers"],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "order": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "allow_actions": {
+                      "type": "boolean"
+                    },
+                    "allow_triggers": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "actions": {
+      "type": "array",
+      "description": "Available action types",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "description"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "source_zones": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "target_zone": {
+            "type": "string"
+          },
+          "speed": {
+            "type": "string",
+            "examples": ["system", "main", "quick", "combat"]
+          },
+          "requires_empty_stack": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "stack": {
+      "type": "object",
+      "description": "Stack rules",
+      "required": ["enabled", "resolve_order", "auto_resolve_on_pass"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "resolve_order": {
+          "type": "string",
+          "examples": ["last_in_first_out", "first_in_first_out"]
+        },
+        "auto_resolve_on_pass": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "trigger_kinds": {
+      "type": "array",
+      "description": "Available trigger types",
+      "items": {
+        "type": "object",
+        "required": ["id", "description"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "keywords": {
+      "type": "array",
+      "description": "Available keywords",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "description"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "win_conditions": {
+      "type": "array",
+      "description": "Win condition definitions",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "priority"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "loss_conditions": {
+      "type": "array",
+      "description": "Loss condition definitions",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "priority"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "cards": {
+      "type": "array",
+      "description": "Optional inline card definitions",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "card_type"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "card_type": {
+            "type": "string"
+          },
+          "cost": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "abilities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["trigger", "effect"],
+              "properties": {
+                "trigger": {
+                  "type": "string"
+                },
+                "effect": {
+                  "type": "string"
+                },
+                "params": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "script_path": {
+            "type": "string"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stats": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

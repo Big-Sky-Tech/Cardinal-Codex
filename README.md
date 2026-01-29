@@ -182,6 +182,23 @@ Edit [rules.toml](rules.toml) to:
 
 No code changes needed. Cardinal supports both TOML-only cards and Rhai-scripted cards. See [SCRIPTING_GUIDE.md](SCRIPTING_GUIDE.md) for details.
 
+### VS Code TOML Validation
+
+Cardinal includes JSON schemas for validating TOML files in VS Code:
+
+1. **Install the "Even Better TOML" extension** (recommended automatically)
+2. **Open any TOML file** — invalid fields or values are highlighted
+3. **Get autocomplete** — Press Ctrl+Space for valid field suggestions
+4. **See exact errors** — Hover over red squiggles for validation messages
+
+Schemas validate:
+- Individual card files (`cards/*.toml`)
+- Card array files (`cards.toml`)
+- Rules definitions (`rules.toml`)
+- Pack metadata (`pack.toml`)
+
+See [schemas/README.md](schemas/README.md) for details.
+
 ## Next Steps
 
 1. **[README_DETAILED.md](README_DETAILED.md)** — Understand the system
