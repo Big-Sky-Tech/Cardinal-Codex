@@ -197,6 +197,304 @@ fn effect_to_command(
                 },
             })
         }
+        "lose_life" => {
+            let amount = params.get("amount")
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(1);
+            let player = params.get("player")
+                .and_then(|s| s.parse::<u8>().ok())
+                .unwrap_or(controller.0);
+            
+            let effect_str = Box::leak(format!("lose_life_{}_player_{}", amount, player).into_boxed_str());
+            
+            Some(Command::PushStack {
+                item: StackItem {
+                    id,
+                    source: Some(source),
+                    controller,
+                    effect: EffectRef::Builtin(effect_str),
+                },
+            })
+        }
+        "set_life" => {
+            let amount = params.get("amount")
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(20);
+            let player = params.get("player")
+                .and_then(|s| s.parse::<u8>().ok())
+                .unwrap_or(controller.0);
+            
+            let effect_str = Box::leak(format!("set_life_{}_player_{}", amount, player).into_boxed_str());
+            
+            Some(Command::PushStack {
+                item: StackItem {
+                    id,
+                    source: Some(source),
+                    controller,
+                    effect: EffectRef::Builtin(effect_str),
+                },
+            })
+        }
+        "mill_cards" => {
+            let count = params.get("count")
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(1);
+            let player = params.get("player")
+                .and_then(|s| s.parse::<u8>().ok())
+                .unwrap_or(controller.0);
+            
+            let effect_str = Box::leak(format!("mill_{}_player_{}", count, player).into_boxed_str());
+            
+            Some(Command::PushStack {
+                item: StackItem {
+                    id,
+                    source: Some(source),
+                    controller,
+                    effect: EffectRef::Builtin(effect_str),
+                },
+            })
+        }
+        "discard_cards" => {
+            let count = params.get("count")
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(1);
+            let player = params.get("player")
+                .and_then(|s| s.parse::<u8>().ok())
+                .unwrap_or(controller.0);
+            
+            let effect_str = Box::leak(format!("discard_{}_player_{}", count, player).into_boxed_str());
+            
+            Some(Command::PushStack {
+                item: StackItem {
+                    id,
+                    source: Some(source),
+                    controller,
+                    effect: EffectRef::Builtin(effect_str),
+                },
+            })
+        }
+        "set_stats" => {
+            let power = params.get("power")
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(0);
+            let toughness = params.get("toughness")
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(0);
+            let card = params.get("card")
+                .and_then(|s| s.parse::<u32>().ok())
+                .unwrap_or(source.0);
+            
+            let effect_str = Box::leak(format!("set_stats_{}_{}_{}", card, power, toughness).into_boxed_str());
+            
+            Some(Command::PushStack {
+                item: StackItem {
+                    id,
+                    source: Some(source),
+                    controller,
+                    effect: EffectRef::Builtin(effect_str),
+                },
+            })
+        }
+        "grant_keyword" => {
+            let keyword = params.get("keyword")
+                .map(|s| s.as_str())
+                .unwrap_or("");
+            let card = params.get("card")
+                .and_then(|s| s.parse::<u32>().ok())
+                .unwrap_or(source.0);
+            
+            if keyword.is_empty() {
+                return None;
+            }
+            
+            let effect_str = Box::leak(format!("grant_keyword_{}_{}", card, keyword).into_boxed_str());
+            
+            Some(Command::PushStack {
+                item: StackItem {
+                    id,
+                    source: Some(source),
+                    controller,
+                    effect: EffectRef::Builtin(effect_str),
+                },
+            })
+        }
+        "remove_keyword" => {
+            let keyword = params.get("keyword")
+                .map(|s| s.as_str())
+                .unwrap_or("");
+            let card = params.get("card")
+                .and_then(|s| s.parse::<u32>().ok())
+                .unwrap_or(source.0);
+            
+            if keyword.is_empty() {
+                return None;
+            }
+            
+            let effect_str = Box::leak(format!("remove_keyword_{}_{}", card, keyword).into_boxed_str());
+            
+            Some(Command::PushStack {
+                item: StackItem {
+                    id,
+                    source: Some(source),
+                    controller,
+                    effect: EffectRef::Builtin(effect_str),
+                },
+            })
+        }
+        "gain_resource" => {
+            let resource = params.get("resource")
+                .map(|s| s.as_str())
+                .unwrap_or("mana");
+            let amount = params.get("amount")
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(1);
+            let player = params.get("player")
+                .and_then(|s| s.parse::<u8>().ok())
+                .unwrap_or(controller.0);
+            
+            let effect_str = Box::leak(format!("gain_resource_{}_{}_{}", player, resource, amount).into_boxed_str());
+            
+            Some(Command::PushStack {
+                item: StackItem {
+                    id,
+                    source: Some(source),
+                    controller,
+                    effect: EffectRef::Builtin(effect_str),
+                },
+            })
+        }
+        "spend_resource" => {
+            let resource = params.get("resource")
+                .map(|s| s.as_str())
+                .unwrap_or("mana");
+            let amount = params.get("amount")
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(1);
+            let player = params.get("player")
+                .and_then(|s| s.parse::<u8>().ok())
+                .unwrap_or(controller.0);
+            
+            let effect_str = Box::leak(format!("spend_resource_{}_{}_{}", player, resource, amount).into_boxed_str());
+            
+            Some(Command::PushStack {
+                item: StackItem {
+                    id,
+                    source: Some(source),
+                    controller,
+                    effect: EffectRef::Builtin(effect_str),
+                },
+            })
+        }
+        "set_resource" => {
+            let resource = params.get("resource")
+                .map(|s| s.as_str())
+                .unwrap_or("mana");
+            let amount = params.get("amount")
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(0);
+            let player = params.get("player")
+                .and_then(|s| s.parse::<u8>().ok())
+                .unwrap_or(controller.0);
+            
+            let effect_str = Box::leak(format!("set_resource_{}_{}_{}", player, resource, amount).into_boxed_str());
+            
+            Some(Command::PushStack {
+                item: StackItem {
+                    id,
+                    source: Some(source),
+                    controller,
+                    effect: EffectRef::Builtin(effect_str),
+                },
+            })
+        }
+        "add_counter" => {
+            let counter_type = params.get("counter_type")
+                .map(|s| s.as_str())
+                .unwrap_or("+1/+1");
+            let amount = params.get("amount")
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(1);
+            let card = params.get("card")
+                .and_then(|s| s.parse::<u32>().ok())
+                .unwrap_or(source.0);
+            
+            let effect_str = Box::leak(format!("add_counter_{}_{}_{}", card, counter_type, amount).into_boxed_str());
+            
+            Some(Command::PushStack {
+                item: StackItem {
+                    id,
+                    source: Some(source),
+                    controller,
+                    effect: EffectRef::Builtin(effect_str),
+                },
+            })
+        }
+        "remove_counter" => {
+            let counter_type = params.get("counter_type")
+                .map(|s| s.as_str())
+                .unwrap_or("+1/+1");
+            let amount = params.get("amount")
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(1);
+            let card = params.get("card")
+                .and_then(|s| s.parse::<u32>().ok())
+                .unwrap_or(source.0);
+            
+            let effect_str = Box::leak(format!("remove_counter_{}_{}_{}", card, counter_type, amount).into_boxed_str());
+            
+            Some(Command::PushStack {
+                item: StackItem {
+                    id,
+                    source: Some(source),
+                    controller,
+                    effect: EffectRef::Builtin(effect_str),
+                },
+            })
+        }
+        "create_token" => {
+            let token_type = params.get("token_type")
+                .map(|s| s.as_str())
+                .unwrap_or("1/1_soldier");
+            let zone = params.get("zone")
+                .map(|s| s.as_str())
+                .unwrap_or("field");
+            let player = params.get("player")
+                .and_then(|s| s.parse::<u8>().ok())
+                .unwrap_or(controller.0);
+            
+            let effect_str = Box::leak(format!("create_token_{}_{}_{}", player, token_type, zone).into_boxed_str());
+            
+            Some(Command::PushStack {
+                item: StackItem {
+                    id,
+                    source: Some(source),
+                    controller,
+                    effect: EffectRef::Builtin(effect_str),
+                },
+            })
+        }
+        "move_card" => {
+            let card = params.get("card")
+                .and_then(|s| s.parse::<u32>().ok())
+                .unwrap_or(source.0);
+            let from_zone = params.get("from_zone")
+                .map(|s| s.as_str())
+                .unwrap_or("hand");
+            let to_zone = params.get("to_zone")
+                .map(|s| s.as_str())
+                .unwrap_or("field");
+            
+            let effect_str = Box::leak(format!("move_card_{}_{}_{}", card, from_zone, to_zone).into_boxed_str());
+            
+            Some(Command::PushStack {
+                item: StackItem {
+                    id,
+                    source: Some(source),
+                    controller,
+                    effect: EffectRef::Builtin(effect_str),
+                },
+            })
+        }
         _ => {
             // Unknown effect type - skip
             None

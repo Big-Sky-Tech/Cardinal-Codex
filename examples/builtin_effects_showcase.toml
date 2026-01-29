@@ -1,0 +1,349 @@
+# Example cards demonstrating all available builtin TOML effects
+# No scripting required - these cards work with TOML params only
+
+# ==============================================
+# LIFE & DAMAGE EFFECTS
+# ==============================================
+
+[[cards]]
+id = "builtin_001"
+name = "Simple Shock"
+card_type = "spell"
+cost = "1"
+description = "Deal 2 damage to target player"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "damage"
+[cards.abilities.params]
+amount = "2"
+
+[[cards]]
+id = "builtin_002"
+name = "Healing Light"
+card_type = "spell"
+cost = "1"
+description = "Gain 5 life"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "gain_life"
+[cards.abilities.params]
+amount = "5"
+
+[[cards]]
+id = "builtin_003"
+name = "Dark Pact"
+card_type = "spell"
+cost = "2"
+description = "Lose 3 life"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "lose_life"
+[cards.abilities.params]
+amount = "3"
+player = "0"
+
+[[cards]]
+id = "builtin_004"
+name = "Divine Intervention"
+card_type = "spell"
+cost = "5"
+description = "Set target player's life to 20"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "set_life"
+[cards.abilities.params]
+amount = "20"
+player = "0"
+
+# ==============================================
+# CARD DRAW & ZONE MANIPULATION
+# ==============================================
+
+[[cards]]
+id = "builtin_005"
+name = "Inspiration"
+card_type = "spell"
+cost = "1"
+description = "Draw 2 cards"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "draw"
+[cards.abilities.params]
+amount = "2"
+
+[[cards]]
+id = "builtin_006"
+name = "Mind Grinder"
+card_type = "spell"
+cost = "2"
+description = "Target opponent mills 3 cards"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "mill_cards"
+[cards.abilities.params]
+count = "3"
+player = "1"
+
+[[cards]]
+id = "builtin_007"
+name = "Thoughtseize"
+card_type = "spell"
+cost = "1"
+description = "Target player discards 2 cards"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "discard_cards"
+[cards.abilities.params]
+count = "2"
+player = "1"
+
+# ==============================================
+# CREATURE STAT MODIFICATION
+# ==============================================
+
+[[cards]]
+id = "builtin_008"
+name = "Giant Growth"
+card_type = "spell"
+cost = "1"
+description = "Target creature gets +3/+3 until end of turn"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "pump"
+[cards.abilities.params]
+power = "3"
+toughness = "3"
+# Note: card parameter would default to source card
+
+[[cards]]
+id = "builtin_009"
+name = "Humble"
+card_type = "spell"
+cost = "2"
+description = "Set target creature's power and toughness to 0/1"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "set_stats"
+[cards.abilities.params]
+card = "0"
+power = "0"
+toughness = "1"
+
+# ==============================================
+# KEYWORD ABILITIES
+# ==============================================
+
+[[cards]]
+id = "builtin_010"
+name = "Wings of Valor"
+card_type = "enchantment"
+cost = "2"
+description = "Target creature gains flying"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "grant_keyword"
+[cards.abilities.params]
+card = "0"
+keyword = "flying"
+
+[[cards]]
+id = "builtin_011"
+name = "Clip Wings"
+card_type = "spell"
+cost = "1"
+description = "Target creature loses flying"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "remove_keyword"
+[cards.abilities.params]
+card = "0"
+keyword = "flying"
+
+# ==============================================
+# RESOURCE MANIPULATION
+# ==============================================
+
+[[cards]]
+id = "builtin_012"
+name = "Mana Ritual"
+card_type = "spell"
+cost = "1"
+description = "Gain 3 mana"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "gain_resource"
+[cards.abilities.params]
+resource = "mana"
+amount = "3"
+player = "0"
+
+[[cards]]
+id = "builtin_013"
+name = "Mana Drain"
+card_type = "spell"
+cost = "2"
+description = "Target player loses 2 mana"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "spend_resource"
+[cards.abilities.params]
+resource = "mana"
+amount = "2"
+player = "1"
+
+[[cards]]
+id = "builtin_014"
+name = "Reset"
+card_type = "spell"
+cost = "3"
+description = "Set your mana to 0"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "set_resource"
+[cards.abilities.params]
+resource = "mana"
+amount = "0"
+player = "0"
+
+# ==============================================
+# COUNTER MANIPULATION
+# ==============================================
+
+[[cards]]
+id = "builtin_015"
+name = "Strength of Ages"
+card_type = "enchantment"
+cost = "2"
+description = "Put two +1/+1 counters on target creature"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "add_counter"
+[cards.abilities.params]
+card = "0"
+counter_type = "+1/+1"
+amount = "2"
+
+[[cards]]
+id = "builtin_016"
+name = "Wither"
+card_type = "spell"
+cost = "1"
+description = "Remove a +1/+1 counter from target creature"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "remove_counter"
+[cards.abilities.params]
+card = "0"
+counter_type = "+1/+1"
+amount = "1"
+
+# ==============================================
+# TOKEN CREATION
+# ==============================================
+
+[[cards]]
+id = "builtin_017"
+name = "Raise the Alarm"
+card_type = "spell"
+cost = "2"
+description = "Create a 1/1 soldier token"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "create_token"
+[cards.abilities.params]
+player = "0"
+token_type = "1/1_soldier"
+zone = "field"
+
+# ==============================================
+# CARD MOVEMENT
+# ==============================================
+
+[[cards]]
+id = "builtin_018"
+name = "Reanimate"
+card_type = "spell"
+cost = "3"
+description = "Return target creature from graveyard to battlefield"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "move_card"
+[cards.abilities.params]
+card = "0"
+from_zone = "graveyard"
+to_zone = "field"
+
+# ==============================================
+# CREATURES WITH ETB EFFECTS
+# ==============================================
+
+[[cards]]
+id = "builtin_019"
+name = "Healer Angel"
+card_type = "creature"
+cost = "3"
+description = "When this enters the battlefield, gain 3 life"
+
+[[cards.abilities]]
+trigger = "etb"
+effect = "gain_life"
+[cards.abilities.params]
+amount = "3"
+
+[cards.stats]
+power = "2"
+toughness = "2"
+
+[[cards]]
+id = "builtin_020"
+name = "Visionary Scout"
+card_type = "creature"
+cost = "2"
+description = "When this enters the battlefield, draw a card"
+
+[[cards.abilities]]
+trigger = "etb"
+effect = "draw"
+[cards.abilities.params]
+amount = "1"
+
+[cards.stats]
+power = "1"
+toughness = "1"
+
+[[cards]]
+id = "builtin_021"
+name = "Benevolent Mage"
+card_type = "creature"
+cost = "4"
+description = "When this enters the battlefield, gain 2 mana"
+
+[[cards.abilities]]
+trigger = "etb"
+effect = "gain_resource"
+[cards.abilities.params]
+resource = "mana"
+amount = "2"
+player = "0"
+
+[cards.stats]
+power = "2"
+toughness = "3"
