@@ -13,10 +13,11 @@ A **headless, deterministic game engine** for trading card games (TCGs). Define 
 
 ✅ **Fully Deterministic** — Same seed + actions = identical outcome  
 ✅ **Data-Driven Rules** — Define cards in TOML (no code changes)  
+✅ **17 Builtin Effects** — Create complex cards without scripting  
 ✅ **Hybrid Card System** — TOML builtins + Rhai scripts for flexibility  
 ✅ **Headless** — Embed in any interface (web, mobile, terminal, AI)  
 ✅ **Event-Based** — Complete game log for replays and debugging  
-✅ **Well-Tested** — 31 tests covering core systems and scripting  
+✅ **Well-Tested** — 67 tests covering core systems and scripting  
 ✅ **Clean Architecture** — Clear separation of concerns  
 
 ## Getting Started
@@ -91,8 +92,9 @@ One struct holds all truth. Everything else is derived from it.
 | Document | Audience | Content |
 |----------|----------|---------|
 | [README_DETAILED.md](README_DETAILED.md) | Everyone | Overview, concepts, quick start |
+| [BUILTIN_EFFECTS.md](BUILTIN_EFFECTS.md) | Card designers | Complete reference for TOML-only card effects |
+| [SCRIPTING_GUIDE.md](SCRIPTING_GUIDE.md) | Advanced card designers | Rhai scripting for custom card effects |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Developers | Design principles, game flow, data structures |
-| [SCRIPTING_GUIDE.md](SCRIPTING_GUIDE.md) | Card designers | Rhai scripting for custom card effects |
 | [crates/cardinal/README.md](crates/cardinal/README.md) | API users | Usage guide, integration examples, concepts |
 | [crates/cardinal-cli/README.md](crates/cardinal-cli/README.md) | Players | Terminal game guide, controls, examples |
 | [crates/cardinal/explanation.md](crates/cardinal/explanation.md) | Code explorers | Design patterns, module layout, architecture |
@@ -173,14 +175,50 @@ cargo test
 ## Configuration
 
 Edit [rules.toml](rules.toml) to:
-- Define new cards (TOML builtin effects)
+- Define new cards using **builtin TOML effects** (no scripting required!)
 - Add scripted cards (Rhai scripts in `examples/scripts/`)
 - Change mana costs
 - Add card abilities
 - Customize phases
 - Change game constants
 
-No code changes needed. Cardinal supports both TOML-only cards and Rhai-scripted cards. See [SCRIPTING_GUIDE.md](SCRIPTING_GUIDE.md) for details.
+No code changes needed. Cardinal supports both TOML-only cards and Rhai-scripted cards.
+
+### Card Design Approaches
+
+**1. TOML-Only Cards (Recommended for most cards)**
+Use builtin effects without any scripting. See [BUILTIN_EFFECTS.md](BUILTIN_EFFECTS.md) for the complete reference.
+
+Example:
+```toml
+[[cards]]
+id = "lightning_bolt"
+name = "Lightning Bolt"
+card_type = "spell"
+cost = "1"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "damage"
+[cards.abilities.params]
+amount = "3"
+```
+
+**2. Scripted Cards (For complex custom behavior)**
+Use Rhai scripts for unique mechanics. See [SCRIPTING_GUIDE.md](SCRIPTING_GUIDE.md) for details.
+
+### Available Builtin Effects
+
+Cardinal supports **17 builtin effect types** covering all common card game mechanics:
+- Life & Damage: `damage`, `gain_life`, `lose_life`, `set_life`
+- Card Draw: `draw`, `mill_cards`, `discard_cards`, `move_card`
+- Creature Stats: `pump`, `set_stats`
+- Keywords: `grant_keyword`, `remove_keyword`
+- Resources: `gain_resource`, `spend_resource`, `set_resource`
+- Counters: `add_counter`, `remove_counter`
+- Tokens: `create_token`
+
+See [BUILTIN_EFFECTS.md](BUILTIN_EFFECTS.md) for complete documentation and examples.
 
 ### VS Code TOML Validation
 
@@ -203,9 +241,10 @@ See [schemas/README.md](schemas/README.md) for details.
 
 1. **[README_DETAILED.md](README_DETAILED.md)** — Understand the system
 2. **`cargo run --bin cardinal-cli`** — Play the game
-3. **[crates/cardinal/README.md](crates/cardinal/README.md)** — Learn the API
-4. **[ARCHITECTURE.md](ARCHITECTURE.md)** — Deep dive into design
-5. **Edit rules.toml** — Customize your game
+3. **[BUILTIN_EFFECTS.md](BUILTIN_EFFECTS.md)** — Design cards without scripting
+4. **[crates/cardinal/README.md](crates/cardinal/README.md)** — Learn the API
+5. **[ARCHITECTURE.md](ARCHITECTURE.md)** — Deep dive into design
+6. **Edit rules.toml** — Customize your game
 
 ## Summary
 
