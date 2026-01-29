@@ -49,6 +49,11 @@ enum Commands {
         #[command(subcommand)]
         target: CompileTarget,
     },
+    /// Test and simulate game scenarios
+    Test {
+        #[command(subcommand)]
+        target: TestTarget,
+    },
 }
 
 #[derive(Subcommand)]
@@ -102,6 +107,33 @@ enum CompileTarget {
     },
 }
 
+#[derive(Subcommand)]
+enum TestTarget {
+    /// Run a basic game simulation test
+    Game {
+        /// Path to rules.toml file
+        #[arg(short, long, default_value = "./rules.toml")]
+        rules: String,
+        /// Random seed for deterministic testing
+        #[arg(short, long, default_value = "42")]
+        seed: u64,
+        /// Number of cards in starting hand for testing
+        #[arg(long, default_value = "5")]
+        hand_size: usize,
+        /// Enable verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Test loading a .ccpack file
+    Pack {
+        /// Path to .ccpack file
+        pack: String,
+        /// Enable verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -132,6 +164,9 @@ fn main() {
         }
         Some(Commands::Compile { target }) => {
             handle_compilation(target);
+        }
+        Some(Commands::Test { target }) => {
+            handle_testing(target);
         }
         None => {
             // Default: run the game with default rules
@@ -524,6 +559,41 @@ fn handle_compilation(target: CompileTarget) {
             if let Err(e) = compile_pack(&input, &output, options) {
                 eprintln!("Compilation error: {}", e);
                 std::process::exit(1);
+            }
+        }
+    }
+}
+
+fn handle_testing(target: TestTarget) {
+    use cardinal::testing::*;
+
+    match target {
+        TestTarget::Game { rules, seed, hand_size, verbose } => {
+            let options = TestOptions {
+                seed,
+                starting_hand_size: hand_size,
+                verbose,
+            };
+
+            match run_basic_test(&rules, options) {
+                Ok(summary) => {
+                    println!("\n{}", summary);
+                }
+                Err(e) => {
+                    eprintln!("Test error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        TestTarget::Pack { pack, verbose } => {
+            match test_pack_loading(&pack, verbose) {
+                Ok(summary) => {
+                    println!("\n{}", summary);
+                }
+                Err(e) => {
+                    eprintln!("Test error: {}", e);
+                    std::process::exit(1);
+                }
             }
         }
     }
