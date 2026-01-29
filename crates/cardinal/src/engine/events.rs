@@ -43,10 +43,19 @@ pub fn commit_commands(state: &mut GameState, commands: &[Command]) -> Vec<Event
                 state.pending_choice = Some(choice.clone());
                 events.push(Event::ChoiceRequested { choice_id: choice.id, player: *player });
             }
-            Command::ShuffleZone { zone } => {
-                // TODO: Implement actual shuffling with RNG from GameEngine
-                // For now, just emit the event
-                events.push(Event::ZoneShuffled { zone: zone.clone() });
+            Command::ShuffleZone { zone: _ } => {
+                // NOTE: ShuffleZone is intentionally left unimplemented here.
+                // A correct implementation must:
+                //   - Use the engine-owned RNG to deterministically reorder the cards
+                //     in the target zone within `GameState`, and
+                //   - Emit a corresponding `ZoneShuffled` event that accurately
+                //     reflects the state change.
+                //
+                // Emitting `ZoneShuffled` without changing `GameState` would violate
+                // the engine's design principles (state is authoritative; events
+                // must describe real state changes). Until proper shuffling is wired
+                // up, this command must not be used in live rules/effects.
+                todo!("Command::ShuffleZone is not yet implemented: it must update GameState and use the engine RNG to shuffle the zone");
             }
             Command::ModifyStats { card, power, toughness } => {
                 let instance = state.card_instances.entry(*card).or_insert_with(|| CardInstanceData {
@@ -55,8 +64,8 @@ pub fn commit_commands(state: &mut GameState, commands: &[Command]) -> Vec<Event
                     keywords: Vec::new(),
                     counters: HashMap::new(),
                 });
-                *instance.stat_modifiers.entry("power".to_string()).or_insert(0) += power;
-                *instance.stat_modifiers.entry("toughness".to_string()).or_insert(0) += toughness;
+                *instance.stat_modifiers.entry("power".to_string()).or_insert(0) += *power;
+                *instance.stat_modifiers.entry("toughness".to_string()).or_insert(0) += *toughness;
                 events.push(Event::StatsModified { card: *card, power: *power, toughness: *toughness });
             }
             Command::SetStats { card, power, toughness } => {
@@ -77,7 +86,7 @@ pub fn commit_commands(state: &mut GameState, commands: &[Command]) -> Vec<Event
                     keywords: Vec::new(),
                     counters: HashMap::new(),
                 });
-                *instance.stat_modifiers.entry(stat_name.clone()).or_insert(0) += delta;
+                *instance.stat_modifiers.entry(stat_name.clone()).or_insert(0) += *delta;
                 events.push(Event::StatModified { card: *card, stat_name: stat_name.clone(), delta: *delta });
             }
             Command::SetStat { card, stat_name, value } => {
@@ -110,13 +119,13 @@ pub fn commit_commands(state: &mut GameState, commands: &[Command]) -> Vec<Event
             }
             Command::GainResource { player, resource, amount } => {
                 if let Some(p) = state.players.iter_mut().find(|pl| pl.id == *player) {
-                    *p.resources.entry(resource.clone()).or_insert(0) += amount;
+                    *p.resources.entry(resource.clone()).or_insert(0) += *amount;
                 }
                 events.push(Event::ResourceGained { player: *player, resource: resource.clone(), amount: *amount });
             }
             Command::SpendResource { player, resource, amount } => {
                 if let Some(p) = state.players.iter_mut().find(|pl| pl.id == *player) {
-                    *p.resources.entry(resource.clone()).or_insert(0) -= amount;
+                    *p.resources.entry(resource.clone()).or_insert(0) -= *amount;
                 }
                 events.push(Event::ResourceSpent { player: *player, resource: resource.clone(), amount: *amount });
             }
@@ -164,13 +173,13 @@ pub fn commit_commands(state: &mut GameState, commands: &[Command]) -> Vec<Event
                     keywords: Vec::new(),
                     counters: HashMap::new(),
                 });
-                *instance.counters.entry(counter_type.clone()).or_insert(0) += amount;
+                *instance.counters.entry(counter_type.clone()).or_insert(0) += *amount;
                 events.push(Event::CounterAdded { card: *card, counter_type: counter_type.clone(), amount: *amount });
             }
             Command::RemoveCounter { card, counter_type, amount } => {
                 if let Some(instance) = state.card_instances.get_mut(card) {
                     let current = instance.counters.entry(counter_type.clone()).or_insert(0);
-                    *current = (*current - amount).max(0);
+                    *current = (*current - *amount).max(0);
                 }
                 events.push(Event::CounterRemoved { card: *card, counter_type: counter_type.clone(), amount: *amount });
             }

@@ -5,11 +5,6 @@ use crate::{
     engine::scripting::{RhaiEngine, ScriptContext},
     error::CardinalError,
 };
-use std::sync::Mutex;
-use std::collections::HashMap;
-
-/// Cache for zone ID strings to avoid repeated allocations
-static ZONE_ID_CACHE: Mutex<Option<HashMap<String, &'static str>>> = Mutex::new(None);
 
 /// Execute an effect and return commands to apply its results
 /// This handles three types of effects:
@@ -141,13 +136,23 @@ fn execute_scripted_effect(
                 });
             }
             "mill" => {
-                let _player = extract_i32(&map, "player", script_name)?;
-                let _count = extract_i32(&map, "count", script_name)?;
+                let player = extract_i32(&map, "player", script_name)?;
+                let count = extract_i32(&map, "count", script_name)?;
+                
+                validate_non_negative(player, "player", script_name)?;
+                validate_non_negative(count, "count", script_name)?;
+                validate_u8_range(player, "player", script_name)?;
+                
                 // TODO: Implement milling (deck to graveyard)
             }
             "discard" => {
-                let _player = extract_i32(&map, "player", script_name)?;
-                let _count = extract_i32(&map, "count", script_name)?;
+                let player = extract_i32(&map, "player", script_name)?;
+                let count = extract_i32(&map, "count", script_name)?;
+                
+                validate_non_negative(player, "player", script_name)?;
+                validate_non_negative(count, "count", script_name)?;
+                validate_u8_range(player, "player", script_name)?;
+                
                 // TODO: Implement discarding (hand to graveyard)
             }
             "move_card" => {
@@ -169,13 +174,15 @@ fn execute_scripted_effect(
             }
             "shuffle_zone" => {
                 let _player = extract_i32(&map, "player", script_name)?;
-                let zone = extract_string(&map, "zone", script_name)?;
+                let _zone = extract_string(&map, "zone", script_name)?;
                 
-                let zone_id = string_to_zone_id(&zone);
-                
-                commands.push(Command::ShuffleZone {
-                    zone: zone_id,
-                });
+                // NOTE: ShuffleZone is intentionally left unimplemented.
+                // A correct implementation must use the engine-owned RNG to deterministically
+                // reorder cards in the target zone within GameState. Until proper shuffling
+                // is wired up, this effect must not be used in live rules/effects.
+                return Err(CardinalError(
+                    "shuffle_zone effect is not yet implemented: it must update GameState and use the engine RNG to shuffle the zone".to_string()
+                ));
             }
             "pump" => {
                 let card = extract_i32(&map, "card", script_name)?;
@@ -412,19 +419,14 @@ fn validate_u8_range(value: i32, field: &str, script_name: &str) -> Result<(), C
 }
 
 fn string_to_zone_id(zone_str: &str) -> ZoneId {
-    // Use a static cache to avoid repeated allocations
-    // Zone IDs are expected to be a small, finite set (hand, deck, graveyard, field, etc.)
-    let mut cache = ZONE_ID_CACHE.lock().unwrap();
-    let cache = cache.get_or_insert_with(HashMap::new);
-    
-    if let Some(&cached_str) = cache.get(zone_str) {
-        return ZoneId(cached_str);
-    }
-    
-    // Cache miss - allocate and store
+    // Convert string to static ZoneId by leaking the string
+    // Note: This intentionally leaks memory but zone IDs are expected to be
+    // a small, finite set (hand, deck, graveyard, field, etc.) in practice.
+    // A more robust solution would store zone IDs in GameState/GameEngine
+    // or redesign ZoneId to own its String, but this is acceptable for now
+    // given the limited set of zone names used in typical games.
     let boxed = zone_str.to_string().into_boxed_str();
     let static_str: &'static str = Box::leak(boxed);
-    cache.insert(zone_str.to_string(), static_str);
     ZoneId(static_str)
 }
 
@@ -1206,18 +1208,10 @@ mod tests {
         let controller = PlayerId(0);
         let state = minimal_game_state();
         
+        // shuffle_zone is not yet implemented, so it should return an error
         let result = execute_effect(&effect, None, controller, &state, Some(&engine));
-        assert!(result.is_ok());
-        
-        let commands = result.unwrap();
-        assert_eq!(commands.len(), 1);
-        
-        match &commands[0] {
-            Command::ShuffleZone { zone: _ } => {
-                // Success
-            }
-            _ => panic!("Expected ShuffleZone command"),
-        }
+        assert!(result.is_err());
+        assert!(result.unwrap_err().0.contains("not yet implemented"));
     }
     
     #[test]
