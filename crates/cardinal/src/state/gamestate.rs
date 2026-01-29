@@ -1,6 +1,7 @@
 use crate::ids::{PlayerId, ZoneId, PhaseId, StepId, CardId};
 use crate::model::command::{PendingChoice, StackItem};
 use crate::rules::schema::Ruleset;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct GameState {
@@ -10,6 +11,8 @@ pub struct GameState {
     pub stack: Vec<StackItem>,
     pub pending_choice: Option<PendingChoice>,
     pub ended: Option<GameEnd>,
+    /// Card instance data (stats, counters, keywords)
+    pub card_instances: HashMap<CardId, CardInstanceData>,
 }
 
 #[derive(Debug, Clone)]
@@ -26,7 +29,8 @@ pub struct TurnState {
 pub struct PlayerState {
     pub id: PlayerId,
     pub life: i32,
-    // resources, flags, etc
+    /// Named resources (e.g., "mana", "action_points")
+    pub resources: HashMap<String, i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -42,6 +46,19 @@ pub struct GameEnd {
     pub reason: String,
 }
 
+/// Runtime data for a card instance
+#[derive(Debug, Clone)]
+pub struct CardInstanceData {
+    /// Current stats (e.g., "power", "toughness", "range")
+    pub stats: HashMap<String, String>,
+    /// Temporary stat modifiers (power/toughness pumps, etc.)
+    pub stat_modifiers: HashMap<String, i32>,
+    /// Keywords the card currently has
+    pub keywords: Vec<String>,
+    /// Counters on the card (e.g., "+1/+1", "charge")
+    pub counters: HashMap<String, i32>,
+}
+
 impl GameState {
     /// Build an initial `GameState` from a `Ruleset`. This is intentionally conservative
     /// and does not shuffle or populate decks; it just creates players, zones, and a starting turn.
@@ -49,7 +66,11 @@ impl GameState {
         let min_players = rules.players.min_players as usize;
         let mut players = Vec::new();
         for i in 0..min_players {
-            players.push(PlayerState { id: PlayerId(i as u8), life: rules.players.starting_life });
+            players.push(PlayerState { 
+                id: PlayerId(i as u8), 
+                life: rules.players.starting_life,
+                resources: HashMap::new(),
+            });
         }
 
         // Build zones: player-owned zones get one ZoneState per player; shared zones get a single ZoneState
@@ -94,6 +115,7 @@ impl GameState {
             stack: Vec::new(),
             pending_choice: None,
             ended: None,
+            card_instances: HashMap::new(),
         }
     }
 }
