@@ -1,0 +1,102 @@
+# Example card demonstrating the new scripting helpers
+
+[[cards]]
+id = "200"
+name = "Arcane Transmuter"
+card_type = "creature"
+cost = "4"
+description = "When this enters the battlefield, mill 2 cards from opponent's deck, gain 2 mana, draw a card, grant itself flying, and add a +1/+1 counter to itself."
+script_path = "examples/scripts/arcane_transmuter.rhai"
+
+[cards.stats]
+power = "2"
+toughness = "3"
+element = "arcane"
+
+[[cards.abilities]]
+trigger = "etb"
+effect = "script:arcane_transmuter"
+
+[[cards]]
+id = "201"
+name = "Mana Ritual"
+card_type = "spell"
+cost = "1"
+description = "Gain 3 mana."
+script_path = "examples/scripts/mana_ritual.rhai"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "script:mana_ritual"
+
+[[cards]]
+id = "202"
+name = "Essence Drain"
+card_type = "spell"
+cost = "2"
+description = "Deal 3 damage to target player. You gain 3 life."
+script_path = "examples/scripts/essence_drain.rhai"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "script:essence_drain"
+
+[[cards]]
+id = "203"
+name = "Wings of Freedom"
+card_type = "enchantment"
+cost = "2"
+description = "Target creature gains flying and gets +1/+1."
+script_path = "examples/scripts/wings_of_freedom.rhai"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "script:wings_of_freedom"
+
+[[cards]]
+id = "204"
+name = "Mill Storm"
+card_type = "spell"
+cost = "3"
+description = "Target opponent mills 5 cards."
+script_path = "examples/scripts/mill_storm.rhai"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "script:mill_storm"
+
+[[cards]]
+id = "205"
+name = "Token Generator"
+card_type = "spell"
+cost = "3"
+description = "Create two 1/1 soldier tokens."
+script_path = "examples/scripts/token_generator.rhai"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "script:token_generator"
+
+[[cards]]
+id = "206"
+name = "Power Surge"
+card_type = "spell"
+cost = "1"
+description = "Target creature gets +2/+2 and gains two +1/+1 counters."
+script_path = "examples/scripts/power_surge.rhai"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "script:power_surge"
+
+[[cards]]
+id = "207"
+name = "Mystic Bolt"
+card_type = "spell"
+cost = "2"
+description = "Deal 3 damage to target player, then draw a card."
+script_path = "examples/scripts/mystic_bolt.rhai"
+
+[[cards.abilities]]
+trigger = "on_play"
+effect = "script:mystic_bolt"

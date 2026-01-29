@@ -40,6 +40,9 @@ fn execute_scripted_effect(
     let context = ScriptContext {
         controller: controller.0,
         source_card: source.map(|c| c.0).unwrap_or(0),
+        active_player: None,
+        turn_number: None,
+        phase: None,
     };
     
     let results = engine.execute_ability(script_name, context)?;
