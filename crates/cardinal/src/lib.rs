@@ -9,6 +9,7 @@ pub mod util;
 pub mod display;
 pub mod pack;
 pub mod validation;
+pub mod compile;
 
 pub use engine::core::{GameEngine, StepResult};
 pub use engine::init::initialize_game;

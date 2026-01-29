@@ -44,6 +44,11 @@ enum Commands {
         #[command(subcommand)]
         target: ValidateTarget,
     },
+    /// Compile game assets into optimized artifacts
+    Compile {
+        #[command(subcommand)]
+        target: CompileTarget,
+    },
 }
 
 #[derive(Subcommand)]
@@ -80,6 +85,23 @@ enum ValidateTarget {
     },
 }
 
+#[derive(Subcommand)]
+enum CompileTarget {
+    /// Compile a pack directory into a .ccpack file (with validation)
+    Pack {
+        /// Input directory containing pack.toml
+        input: String,
+        /// Output .ccpack file path
+        output: String,
+        /// Skip validation before compiling
+        #[arg(long)]
+        no_validate: bool,
+        /// Enable verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -107,6 +129,9 @@ fn main() {
         }
         Some(Commands::Validate { target }) => {
             handle_validation(target);
+        }
+        Some(Commands::Compile { target }) => {
+            handle_compilation(target);
         }
         None => {
             // Default: run the game with default rules
@@ -483,6 +508,24 @@ fn handle_validation(target: ValidateTarget) {
 
     if !result.is_valid {
         std::process::exit(1);
+    }
+}
+
+fn handle_compilation(target: CompileTarget) {
+    use cardinal::compile::*;
+
+    match target {
+        CompileTarget::Pack { input, output, no_validate, verbose } => {
+            let options = CompileOptions {
+                validate: !no_validate,
+                verbose,
+            };
+
+            if let Err(e) = compile_pack(&input, &output, options) {
+                eprintln!("Compilation error: {}", e);
+                std::process::exit(1);
+            }
+        }
     }
 }
 
