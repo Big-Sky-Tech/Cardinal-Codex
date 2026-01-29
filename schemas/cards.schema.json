@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/Big-Sky-Tech/Cardinal-Codex/main/schemas/cards.schema.json",
+  "title": "Cardinal Cards Array",
+  "description": "Schema for cards.toml files containing multiple card definitions in [[cards]] array format",
+  "type": "object",
+  "required": ["cards"],
+  "properties": {
+    "cards": {
+      "type": "array",
+      "description": "Array of card definitions",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "card_type"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique card identifier (can be string or number)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Card name for display"
+          },
+          "card_type": {
+            "type": "string",
+            "description": "Card type (e.g., 'creature', 'spell', 'enchantment')",
+            "examples": ["creature", "spell", "enchantment", "artifact", "instant", "sorcery"]
+          },
+          "cost": {
+            "type": "string",
+            "description": "Cost to play (could be mana, resources, etc.)",
+            "examples": ["1R", "2U", "3G", "4"]
+          },
+          "description": {
+            "type": "string",
+            "description": "Card text / description"
+          },
+          "abilities": {
+            "type": "array",
+            "description": "Abilities this card has (triggered effects)",
+            "items": {
+              "type": "object",
+              "required": ["trigger", "effect"],
+              "properties": {
+                "trigger": {
+                  "type": "string",
+                  "description": "What triggers this ability",
+                  "examples": ["etb", "on_play", "on_damage", "on_attack_declared"]
+                },
+                "effect": {
+                  "type": "string",
+                  "description": "What effect to execute",
+                  "examples": ["damage", "draw", "gain_life", "pump"]
+                },
+                "params": {
+                  "type": "object",
+                  "description": "Optional parameters for the effect",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "script_path": {
+            "type": "string",
+            "description": "Optional path to Rhai script file for scripted behavior"
+          },
+          "keywords": {
+            "type": "array",
+            "description": "Keywords this card has (must reference keyword IDs from rules.toml)",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stats": {
+            "type": "object",
+            "description": "Card stats (e.g., power/toughness for creatures)",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

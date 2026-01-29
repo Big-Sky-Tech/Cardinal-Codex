@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/Big-Sky-Tech/Cardinal-Codex/main/schemas/pack.schema.json",
+  "title": "Cardinal Pack Metadata",
+  "description": "Schema for pack.toml files defining pack metadata in the Cardinal rules engine",
+  "type": "object",
+  "required": ["pack_id", "version"],
+  "properties": {
+    "pack_id": {
+      "type": "string",
+      "description": "Unique identifier for this pack",
+      "examples": ["core-set", "expansion-1", "starter-set"]
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of this pack",
+      "pattern": "^\\d+\\.\\d+\\.\\d+.*$",
+      "examples": ["1.0.0", "2.1.0-beta"]
+    },
+    "dependencies": {
+      "type": "array",
+      "description": "List of pack dependencies (pack_id strings)",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name for the pack"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of what this pack contains"
+    }
+  },
+  "additionalProperties": false
+}
