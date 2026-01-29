@@ -4,8 +4,22 @@ use crate::ids::{CardId, PlayerId, ZoneId};
 pub enum Command {
     MoveCard { card: CardId, from: ZoneId, to: ZoneId },
     ChangeLife { player: PlayerId, delta: i32 },
+    SetLife { player: PlayerId, amount: i32 },
     PushStack { item: StackItem },
     RequestChoice { player: PlayerId, choice: PendingChoice },
+    ShuffleZone { zone: ZoneId },
+    ModifyStats { card: CardId, power: i32, toughness: i32 },
+    SetStats { card: CardId, power: i32, toughness: i32 },
+    ModifyStat { card: CardId, stat_name: String, delta: i32 },
+    SetStat { card: CardId, stat_name: String, value: String },
+    GrantKeyword { card: CardId, keyword: String },
+    RemoveKeyword { card: CardId, keyword: String },
+    GainResource { player: PlayerId, resource: String, amount: i32 },
+    SpendResource { player: PlayerId, resource: String, amount: i32 },
+    SetResource { player: PlayerId, resource: String, amount: i32 },
+    CreateToken { player: PlayerId, token_type: String, zone: ZoneId },
+    AddCounter { card: CardId, counter_type: String, amount: i32 },
+    RemoveCounter { card: CardId, counter_type: String, amount: i32 },
 }
 
 #[derive(Debug, Clone)]
