@@ -5,6 +5,11 @@ use crate::{
     engine::scripting::{RhaiEngine, ScriptContext},
     error::CardinalError,
 };
+use std::sync::Mutex;
+use std::collections::HashMap;
+
+/// Cache for zone ID strings to avoid repeated allocations
+static ZONE_ID_CACHE: Mutex<Option<HashMap<String, &'static str>>> = Mutex::new(None);
 
 /// Execute an effect and return commands to apply its results
 /// This handles three types of effects:
@@ -127,6 +132,7 @@ fn execute_scripted_effect(
                 let amount = extract_i32(&map, "amount", script_name)?;
                 
                 validate_non_negative(player, "player", script_name)?;
+                validate_non_negative(amount, "amount", script_name)?;
                 validate_u8_range(player, "player", script_name)?;
                 
                 commands.push(Command::SetLife {
@@ -251,6 +257,7 @@ fn execute_scripted_effect(
                 let amount = extract_i32(&map, "amount", script_name)?;
                 
                 validate_non_negative(player, "player", script_name)?;
+                validate_non_negative(amount, "amount", script_name)?;
                 validate_u8_range(player, "player", script_name)?;
                 
                 commands.push(Command::GainResource {
@@ -265,6 +272,7 @@ fn execute_scripted_effect(
                 let amount = extract_i32(&map, "amount", script_name)?;
                 
                 validate_non_negative(player, "player", script_name)?;
+                validate_non_negative(amount, "amount", script_name)?;
                 validate_u8_range(player, "player", script_name)?;
                 
                 commands.push(Command::SpendResource {
@@ -279,6 +287,7 @@ fn execute_scripted_effect(
                 let amount = extract_i32(&map, "amount", script_name)?;
                 
                 validate_non_negative(player, "player", script_name)?;
+                validate_non_negative(amount, "amount", script_name)?;
                 validate_u8_range(player, "player", script_name)?;
                 
                 commands.push(Command::SetResource {
@@ -309,6 +318,7 @@ fn execute_scripted_effect(
                 let amount = extract_i32(&map, "amount", script_name)?;
                 
                 validate_non_negative(card, "card", script_name)?;
+                validate_non_negative(amount, "amount", script_name)?;
                 
                 commands.push(Command::AddCounter {
                     card: CardId(card as u32),
@@ -322,6 +332,7 @@ fn execute_scripted_effect(
                 let amount = extract_i32(&map, "amount", script_name)?;
                 
                 validate_non_negative(card, "card", script_name)?;
+                validate_non_negative(amount, "amount", script_name)?;
                 
                 commands.push(Command::RemoveCounter {
                     card: CardId(card as u32),
@@ -401,10 +412,19 @@ fn validate_u8_range(value: i32, field: &str, script_name: &str) -> Result<(), C
 }
 
 fn string_to_zone_id(zone_str: &str) -> ZoneId {
-    // Convert string to static ZoneId
-    // Leak the string to create a 'static reference
+    // Use a static cache to avoid repeated allocations
+    // Zone IDs are expected to be a small, finite set (hand, deck, graveyard, field, etc.)
+    let mut cache = ZONE_ID_CACHE.lock().unwrap();
+    let cache = cache.get_or_insert_with(HashMap::new);
+    
+    if let Some(&cached_str) = cache.get(zone_str) {
+        return ZoneId(cached_str);
+    }
+    
+    // Cache miss - allocate and store
     let boxed = zone_str.to_string().into_boxed_str();
     let static_str: &'static str = Box::leak(boxed);
+    cache.insert(zone_str.to_string(), static_str);
     ZoneId(static_str)
 }
 
@@ -905,6 +925,72 @@ mod tests {
     }
     
     #[test]
+    fn test_scripted_spend_resource() {
+        use crate::engine::scripting::RhaiEngine;
+        
+        let mut engine = RhaiEngine::new();
+        let script = r#"
+            fn execute_ability() {
+                spend_resource(controller, "mana", 3)
+            }
+        "#;
+        
+        engine.register_script("spend_card".to_string(), script).unwrap();
+        
+        let effect = EffectRef::Scripted("spend_card".to_string());
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, Some(&engine));
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::SpendResource { player, resource, amount } => {
+                assert_eq!(*player, PlayerId(0));
+                assert_eq!(resource, "mana");
+                assert_eq!(*amount, 3);
+            }
+            _ => panic!("Expected SpendResource command"),
+        }
+    }
+    
+    #[test]
+    fn test_scripted_set_resource() {
+        use crate::engine::scripting::RhaiEngine;
+        
+        let mut engine = RhaiEngine::new();
+        let script = r#"
+            fn execute_ability() {
+                set_resource(controller, "energy", 10)
+            }
+        "#;
+        
+        engine.register_script("set_res_card".to_string(), script).unwrap();
+        
+        let effect = EffectRef::Scripted("set_res_card".to_string());
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, Some(&engine));
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::SetResource { player, resource, amount } => {
+                assert_eq!(*player, PlayerId(0));
+                assert_eq!(resource, "energy");
+                assert_eq!(*amount, 10);
+            }
+            _ => panic!("Expected SetResource command"),
+        }
+    }
+    
+    #[test]
     fn test_scripted_create_token() {
         use crate::engine::scripting::RhaiEngine;
         
@@ -967,6 +1053,40 @@ mod tests {
                 assert_eq!(*amount, 2);
             }
             _ => panic!("Expected AddCounter command"),
+        }
+    }
+    
+    #[test]
+    fn test_scripted_remove_counter() {
+        use crate::engine::scripting::RhaiEngine;
+        
+        let mut engine = RhaiEngine::new();
+        let script = r#"
+            fn execute_ability() {
+                remove_counter(source_card, "charge", 1)
+            }
+        "#;
+        
+        engine.register_script("remove_counter_card".to_string(), script).unwrap();
+        
+        let effect = EffectRef::Scripted("remove_counter_card".to_string());
+        let controller = PlayerId(0);
+        let source = Some(CardId(18));
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, source, controller, &state, Some(&engine));
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::RemoveCounter { card, counter_type, amount } => {
+                assert_eq!(card.0, 18);
+                assert_eq!(counter_type, "charge");
+                assert_eq!(*amount, 1);
+            }
+            _ => panic!("Expected RemoveCounter command"),
         }
     }
     

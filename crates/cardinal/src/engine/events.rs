@@ -13,11 +13,11 @@ pub fn commit_commands(state: &mut GameState, commands: &[Command]) -> Vec<Event
         match cmd {
             Command::MoveCard { card, from, to } => {
                 // Remove card from source zone
-                if let Some(zone) = state.zones.iter_mut().find(|z| z.id == from.clone()) {
+                if let Some(zone) = state.zones.iter_mut().find(|z| z.id == *from) {
                     zone.cards.retain(|c| c != card);
                 }
                 // Add card to destination zone
-                if let Some(zone) = state.zones.iter_mut().find(|z| z.id == to.clone()) {
+                if let Some(zone) = state.zones.iter_mut().find(|z| z.id == *to) {
                     zone.cards.push(*card);
                 }
                 events.push(Event::CardMoved { card: *card, from: from.clone(), to: to.clone() });
@@ -137,7 +137,7 @@ pub fn commit_commands(state: &mut GameState, commands: &[Command]) -> Vec<Event
                 let token_id = CardId(max_id + 1);
                 
                 // Add token to the specified zone
-                if let Some(z) = state.zones.iter_mut().find(|z| z.id == zone.clone()) {
+                if let Some(z) = state.zones.iter_mut().find(|z| z.id == *zone) {
                     z.cards.push(token_id);
                 }
                 
