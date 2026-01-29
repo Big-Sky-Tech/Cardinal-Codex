@@ -29,29 +29,27 @@ impl Default for CompileOptions {
     }
 }
 
-/// Compile a game from rules and card sources into a .ccpack artifact
+/// Load and validate a game configuration from rules and card sources
 ///
 /// This is a high-level function that:
 /// 1. Validates rules and cards (if validate option is enabled)
 /// 2. Loads and merges all game configuration
-/// 3. Creates a distributable .ccpack file
+///
+/// Note: This function does not create a .ccpack file. Use `compile_pack()` for that.
 ///
 /// # Arguments
 /// * `rules_path` - Path to rules.toml file
 /// * `card_sources` - Optional list of card sources (directories or packs)
-/// * `output_path` - Path where the compiled .ccpack will be written
 /// * `options` - Compilation options
 ///
 /// # Returns
 /// Result with the compiled ruleset
-pub fn compile_game<P: AsRef<Path>, Q: AsRef<Path>>(
+pub fn compile_game<P: AsRef<Path>>(
     rules_path: P,
     card_sources: Option<Vec<CardSource>>,
-    output_path: Q,
     options: CompileOptions,
 ) -> Result<Ruleset> {
     let rules_path = rules_path.as_ref();
-    let output_path = output_path.as_ref();
 
     if options.verbose {
         println!("Compiling game artifact...");

@@ -6,6 +6,25 @@ This guide demonstrates how any frontend can integrate with Cardinal Codex using
 
 Cardinal Codex is now production-ready with comprehensive CLI tools that make it easy for any frontend (web, mobile, desktop, AI) to integrate without requiring custom build tools or validation logic.
 
+## Current Integration Status
+
+**What's Available Now:**
+- ✅ Full Rust library (`cardinal-kernel`) - use directly in Rust applications
+- ✅ CLI tooling for validation, compilation, and testing
+- ✅ `.ccpack` artifact format for distribution
+- ✅ Desktop app integration via Tauri (Rust-based)
+- ✅ Backend integration for any language via REST/GraphQL wrapper
+
+**Planned for Future:**
+- 🔄 WASM bindings for web (JavaScript/TypeScript)
+- 🔄 FFI bindings for mobile (Flutter/Dart, React Native)
+- 🔄 Python bindings for AI/ML applications
+
+**Current Workarounds:**
+- For web: Use Cardinal via a Rust-based backend API
+- For mobile: Use Cardinal via a Rust-based backend API
+- For other languages: Create a thin backend wrapper using the Rust library
+
 ## Quick Start for Frontend Developers
 
 ### 1. Install Cardinal CLI
@@ -129,7 +148,13 @@ Pack test completed!
 
 ### Pattern 1: Web Frontend (JavaScript/TypeScript)
 
+> **Note:** The following example shows how Cardinal *could* be used with JavaScript/TypeScript bindings. 
+> These bindings (`cardinal-wasm`) are **planned for future development** and not currently available.
+> For now, frontends should use the Rust library directly via WASM or through a custom backend.
+
 ```javascript
+// Example of future WASM bindings (not yet implemented)
+
 // 1. Load the .ccpack file
 const response = await fetch('game.ccpack');
 const packBuffer = await response.arrayBuffer();
@@ -153,7 +178,13 @@ for (const event of result.events) {
 
 ### Pattern 2: Mobile App (React Native / Flutter)
 
+> **Note:** The following example shows how Cardinal *could* be used with Flutter/Dart bindings.
+> These bindings (`cardinal_bindings`) are **planned for future development** and not currently available.
+> For now, mobile apps should use the Rust library via FFI or through a custom backend.
+
 ```dart
+// Example of future Flutter bindings (not yet implemented)
+
 // Flutter example
 import 'package:cardinal_bindings/cardinal.dart';
 
@@ -181,8 +212,11 @@ void playCard(int cardId) {
 
 ### Pattern 3: Desktop App (Electron / Tauri)
 
+> **Note:** This example shows actual Rust usage with Tauri, which **works today** since Tauri
+> uses Rust natively. This is the recommended approach for desktop applications.
+
 ```rust
-// Tauri backend example
+// Tauri backend example (this works now!)
 use cardinal_kernel::{GameEngine, load_game_config, CardSource};
 use std::path::PathBuf;
 
@@ -214,8 +248,12 @@ fn apply_action(
 
 ### Pattern 4: AI/Bot Integration
 
+> **Note:** The following example shows how Cardinal *could* be used with Python bindings.
+> These bindings are **planned for future development** and not currently available.
+> For now, AI/bots should interact with Cardinal through a REST API backend written in Rust.
+
 ```python
-# Python example (using potential Python bindings)
+# Example of future Python bindings (not yet implemented)
 import cardinal
 
 # Load the game

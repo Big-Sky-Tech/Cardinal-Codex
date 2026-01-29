@@ -10,7 +10,7 @@
 //! identify and fix issues.
 
 use anyhow::{Context, Result};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::Path;
 
 use crate::rules::schema::{Ruleset, CardDef};
@@ -163,25 +163,8 @@ pub fn validate_card<P: AsRef<Path>>(path: P) -> Result<ValidationResult> {
         result.add_error("Card type cannot be empty".to_string());
     }
 
-    // Validate card type
-    let valid_types = ["creature", "spell", "enchantment", "artifact"];
-    if !valid_types.contains(&card.card_type.as_str()) {
-        result.add_warning(format!(
-            "Unknown card type '{}'. Expected one of: {}",
-            card.card_type,
-            valid_types.join(", ")
-        ));
-    }
-
-    // Validate creature stats
-    if card.card_type == "creature" {
-        if !card.stats.contains_key("power") {
-            result.add_warning("Creature card missing power stat".to_string());
-        }
-        if !card.stats.contains_key("toughness") {
-            result.add_warning("Creature card missing toughness stat".to_string());
-        }
-    }
+    // Note: Card types are config-driven in Cardinal, so we don't validate against
+    // a hardcoded list. The game designer defines what card types are valid.
 
     // Check for script file if script_path is specified
     if let Some(script_path) = &card.script_path {
@@ -388,9 +371,14 @@ pub fn validate_pack<P: AsRef<Path>>(path: P) -> Result<ValidationResult> {
             if script_path.extension().and_then(|s| s.to_str()) == Some("rhai") {
                 let script_result = validate_script(&script_path)?;
                 if !script_result.is_valid {
+                    let filename = script_path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("<unknown>");
+                    
                     result.add_error(format!(
                         "Script validation failed for {}: {}",
-                        script_path.file_name().unwrap().to_string_lossy(),
+                        filename,
                         script_result.errors.join(", ")
                     ));
                 }
