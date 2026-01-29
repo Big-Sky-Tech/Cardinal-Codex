@@ -1,0 +1,35 @@
+### Problem Statement
+Currently, using the Cardinal Codex project with a frontend not specifically dedicated to it is extremely difficult. There is a need to enable the creation of self-contained game artifacts, allowing for seamless integration with any frontend without requiring the development of custom components.
+
+### Proposed Solution
+Enhance the CLI tool to fulfill the following roles:
+1. **Artifact Creation**:
+   - Design a way to compile games into "artifacts" that are fully usable by any frontend.
+   - Define the artifact format (e.g., bundled JSON, binaries, or libraries) to include rules, cards, TOML configurations, and scripts.
+
+2. **Validation**:
+   - Add functionality to validate user inputs such as:
+     - Rules for logical consistency and completeness.
+     - Card packs and TOML files to ensure conformity to schemas.
+     - Script syntaxes and runtime checks.
+   
+3. **Compilation**:
+   - Transform user inputs into a machine-readable format that is optimized for frontends.
+   - Bundle all assets, including card metadata, rules, and scripts for easy distribution.
+
+4. **Testing**:
+   - Include the ability to simulate and debug user inputs via mock tests or dry-run modes.
+   - Provide feedback on rule edge cases, card interactions, and game balance during compilation.
+
+### Benefits
+- Increased usability of the project by a wide range of frontends.
+- Improved developer experience by providing actionable feedback during the asset creation process.
+- Streamlined integration and reduced development efforts for consumers of the project.
+
+### Next Steps
+- Define the finalized artifact format specification.
+- Prototype the enhanced CLI features.
+- Gather feedback from stakeholders and align on requirements before full implementation.
+
+---
+This issue seeks to address the concerns raised in enhancing compatibility, usability, and extensibility of the Cardinal Codex project.
