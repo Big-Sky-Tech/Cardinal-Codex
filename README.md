@@ -24,6 +24,15 @@ A **headless, deterministic game engine** for trading card games (TCGs). Define 
 
 ## Getting Started
 
+### Try the Example Game
+
+```bash
+# Run the minimal example game
+cargo run --bin test-game
+```
+
+The [test-game](test-game/) folder contains a complete minimal example showing how to build a game with Cardinal. It's fully functional and ready to copy and customize!
+
 ### Play the Game
 
 ```bash
@@ -266,12 +275,13 @@ See [schemas/README.md](schemas/README.md) for details.
 
 ## Next Steps
 
-1. **[README_DETAILED.md](README_DETAILED.md)** — Understand the system
-2. **`cargo run --bin cardinal-cli`** — Play the game
-3. **[BUILTIN_EFFECTS.md](BUILTIN_EFFECTS.md)** — Design cards without scripting
-4. **[crates/cardinal/README.md](crates/cardinal/README.md)** — Learn the API
-5. **[ARCHITECTURE.md](ARCHITECTURE.md)** — Deep dive into design
-6. **Edit rules.toml** — Customize your game
+1. **[test-game/](test-game/)** — See a complete minimal game example
+2. **[README_DETAILED.md](README_DETAILED.md)** — Understand the system
+3. **`cargo run --bin cardinal-cli`** — Play the game
+4. **[BUILTIN_EFFECTS.md](BUILTIN_EFFECTS.md)** — Design cards without scripting
+5. **[crates/cardinal/README.md](crates/cardinal/README.md)** — Learn the API
+6. **[ARCHITECTURE.md](ARCHITECTURE.md)** — Deep dive into design
+7. **Edit rules.toml** — Customize your game
 
 ## Summary
 
