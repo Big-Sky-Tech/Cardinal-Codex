@@ -13,7 +13,7 @@ A **headless, deterministic game engine** for trading card games (TCGs). Define 
 
 ✅ **Fully Deterministic** — Same seed + actions = identical outcome  
 ✅ **Data-Driven Rules** — Define cards in TOML (no code changes)  
-✅ **17 Builtin Effects** — Create complex cards without scripting  
+✅ **14 Builtin Effects** — Create cards without scripting (draw partially implemented)  
 ✅ **Hybrid Card System** — TOML builtins + Rhai scripts for flexibility  
 ✅ **Headless** — Embed in any interface (web, mobile, terminal, AI)  
 ✅ **Event-Based** — Complete game log for replays and debugging  
@@ -209,10 +209,10 @@ Use Rhai scripts for unique mechanics. See [SCRIPTING_GUIDE.md](SCRIPTING_GUIDE.
 
 ### Available Builtin Effects
 
-Cardinal supports **17 builtin effect types** covering all common card game mechanics:
+Cardinal supports **14 builtin effect types** (1 partially implemented):
 - Life & Damage: `damage`, `gain_life`, `lose_life`, `set_life`
-- Card Draw: `draw`, `mill_cards`, `discard_cards`, `move_card`
-- Creature Stats: `pump`, `set_stats`
+- Card Draw: `draw` (⚠️ not yet fully implemented), `move_card`
+- Creature Stats: `set_stats`
 - Keywords: `grant_keyword`, `remove_keyword`
 - Resources: `gain_resource`, `spend_resource`, `set_resource`
 - Counters: `add_counter`, `remove_counter`

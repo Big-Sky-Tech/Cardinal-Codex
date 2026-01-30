@@ -235,44 +235,6 @@ fn effect_to_command(
                 },
             })
         }
-        "mill_cards" => {
-            let count = params.get("count")
-                .and_then(|s| s.parse::<i32>().ok())
-                .unwrap_or(1);
-            let player = params.get("player")
-                .and_then(|s| s.parse::<u8>().ok())
-                .unwrap_or(controller.0);
-            
-            let effect_str = Box::leak(format!("mill_{}_player_{}", count, player).into_boxed_str());
-            
-            Some(Command::PushStack {
-                item: StackItem {
-                    id,
-                    source: Some(source),
-                    controller,
-                    effect: EffectRef::Builtin(effect_str),
-                },
-            })
-        }
-        "discard_cards" => {
-            let count = params.get("count")
-                .and_then(|s| s.parse::<i32>().ok())
-                .unwrap_or(1);
-            let player = params.get("player")
-                .and_then(|s| s.parse::<u8>().ok())
-                .unwrap_or(controller.0);
-            
-            let effect_str = Box::leak(format!("discard_{}_player_{}", count, player).into_boxed_str());
-            
-            Some(Command::PushStack {
-                item: StackItem {
-                    id,
-                    source: Some(source),
-                    controller,
-                    effect: EffectRef::Builtin(effect_str),
-                },
-            })
-        }
         "set_stats" => {
             let power = params.get("power")
                 .and_then(|s| s.parse::<i32>().ok())

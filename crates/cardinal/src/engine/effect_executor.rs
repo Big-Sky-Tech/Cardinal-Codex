@@ -552,8 +552,12 @@ fn execute_builtin_effect(effect_str: &str, controller: PlayerId) -> Result<Vec<
             .and_then(|s| s.parse::<u8>().ok())
             .unwrap_or(controller.0);
         
-        // TODO: Implement milling (deck to graveyard)
-        Ok(vec![])
+        // Placeholder: milling (deck to graveyard) is not implemented yet for builtin effects.
+        // Fail explicitly so game designers are not misled by a silent no-op.
+        Err(CardinalError(format!(
+            "Builtin effect '{}' is not implemented yet (milling is currently unsupported)",
+            effect_str
+        )))
     } else if effect_str.starts_with("discard_") {
         // Format: discard_{count}_player_{player_id}
         let parts: Vec<&str> = effect_str.strip_prefix("discard_")
@@ -568,8 +572,12 @@ fn execute_builtin_effect(effect_str: &str, controller: PlayerId) -> Result<Vec<
             .and_then(|s| s.parse::<u8>().ok())
             .unwrap_or(controller.0);
         
-        // TODO: Implement discarding (hand to graveyard)
-        Ok(vec![])
+        // Placeholder: discarding (hand to graveyard) is not implemented yet for builtin effects.
+        // Fail explicitly so game designers are not misled by a silent no-op.
+        Err(CardinalError(format!(
+            "Builtin effect '{}' is not implemented yet (discarding is currently unsupported)",
+            effect_str
+        )))
     } else if effect_str.starts_with("pump_") {
         let parts: Vec<&str> = effect_str.strip_prefix("pump_")
             .unwrap_or("")
@@ -585,9 +593,12 @@ fn execute_builtin_effect(effect_str: &str, controller: PlayerId) -> Result<Vec<
         
         // Note: pump can have negative values to reduce stats, so no validation here
         
-        // TODO: Implement creature stat modification
-        // For now, return empty (no creature tracking yet)
-        Ok(vec![])
+        // Placeholder: creature stat modification is not implemented yet for builtin effects.
+        // Fail explicitly so game designers are not misled by a silent no-op.
+        Err(CardinalError(format!(
+            "Builtin effect '{}' is not implemented yet (pump is currently unsupported)",
+            effect_str
+        )))
     } else if effect_str.starts_with("set_stats_") {
         // Format: set_stats_{card_id}_{power}_{toughness}
         let parts: Vec<&str> = effect_str.strip_prefix("set_stats_")
@@ -944,11 +955,9 @@ mod tests {
         let state = minimal_game_state();
         
         let result = execute_effect(&effect, None, controller, &state, None);
-        assert!(result.is_ok());
-        
-        // Pump not yet implemented, should return empty
-        let commands = result.unwrap();
-        assert_eq!(commands.len(), 0);
+        // Pump not yet implemented, should return error
+        assert!(result.is_err());
+        assert!(result.unwrap_err().0.contains("not implemented yet"));
     }
     
     #[test]

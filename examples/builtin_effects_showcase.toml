@@ -1,4 +1,4 @@
-# Example cards demonstrating all available builtin TOML effects
+# Example cards demonstrating available builtin TOML effects
 # No scripting required - these cards work with TOML params only
 
 # ==============================================
@@ -60,71 +60,11 @@ amount = "20"
 player = "0"
 
 # ==============================================
-# CARD DRAW & ZONE MANIPULATION
-# ==============================================
-
-[[cards]]
-id = "builtin_005"
-name = "Inspiration"
-card_type = "spell"
-cost = "1"
-description = "Draw 2 cards"
-
-[[cards.abilities]]
-trigger = "on_play"
-effect = "draw"
-[cards.abilities.params]
-amount = "2"
-
-[[cards]]
-id = "builtin_006"
-name = "Mind Grinder"
-card_type = "spell"
-cost = "2"
-description = "Target opponent mills 3 cards"
-
-[[cards.abilities]]
-trigger = "on_play"
-effect = "mill_cards"
-[cards.abilities.params]
-count = "3"
-player = "1"
-
-[[cards]]
-id = "builtin_007"
-name = "Thoughtseize"
-card_type = "spell"
-cost = "1"
-description = "Target player discards 2 cards"
-
-[[cards.abilities]]
-trigger = "on_play"
-effect = "discard_cards"
-[cards.abilities.params]
-count = "2"
-player = "1"
-
-# ==============================================
 # CREATURE STAT MODIFICATION
 # ==============================================
 
 [[cards]]
-id = "builtin_008"
-name = "Giant Growth"
-card_type = "spell"
-cost = "1"
-description = "Target creature gets +3/+3 until end of turn"
-
-[[cards.abilities]]
-trigger = "on_play"
-effect = "pump"
-[cards.abilities.params]
-power = "3"
-toughness = "3"
-# Note: card parameter would default to source card
-
-[[cards]]
-id = "builtin_009"
+id = "builtin_005"
 name = "Humble"
 card_type = "spell"
 cost = "2"
@@ -143,7 +83,7 @@ toughness = "1"
 # ==============================================
 
 [[cards]]
-id = "builtin_010"
+id = "builtin_006"
 name = "Wings of Valor"
 card_type = "enchantment"
 cost = "2"
@@ -157,7 +97,7 @@ card = "0"
 keyword = "flying"
 
 [[cards]]
-id = "builtin_011"
+id = "builtin_007"
 name = "Clip Wings"
 card_type = "spell"
 cost = "1"
@@ -175,7 +115,7 @@ keyword = "flying"
 # ==============================================
 
 [[cards]]
-id = "builtin_012"
+id = "builtin_008"
 name = "Mana Ritual"
 card_type = "spell"
 cost = "1"
@@ -190,7 +130,7 @@ amount = "3"
 player = "0"
 
 [[cards]]
-id = "builtin_013"
+id = "builtin_009"
 name = "Mana Drain"
 card_type = "spell"
 cost = "2"
@@ -205,18 +145,18 @@ amount = "2"
 player = "1"
 
 [[cards]]
-id = "builtin_014"
+id = "builtin_010"
 name = "Reset"
 card_type = "spell"
 cost = "3"
-description = "Set your mana to 0"
+description = "Set your mana to 10"
 
 [[cards.abilities]]
 trigger = "on_play"
 effect = "set_resource"
 [cards.abilities.params]
 resource = "mana"
-amount = "0"
+amount = "10"
 player = "0"
 
 # ==============================================
@@ -224,7 +164,7 @@ player = "0"
 # ==============================================
 
 [[cards]]
-id = "builtin_015"
+id = "builtin_011"
 name = "Strength of Ages"
 card_type = "enchantment"
 cost = "2"
@@ -239,7 +179,7 @@ counter_type = "+1/+1"
 amount = "2"
 
 [[cards]]
-id = "builtin_016"
+id = "builtin_012"
 name = "Wither"
 card_type = "spell"
 cost = "1"
@@ -258,7 +198,7 @@ amount = "1"
 # ==============================================
 
 [[cards]]
-id = "builtin_017"
+id = "builtin_013"
 name = "Raise the Alarm"
 card_type = "spell"
 cost = "2"
@@ -277,7 +217,7 @@ zone = "field"
 # ==============================================
 
 [[cards]]
-id = "builtin_018"
+id = "builtin_014"
 name = "Reanimate"
 card_type = "spell"
 cost = "3"
@@ -296,7 +236,7 @@ to_zone = "field"
 # ==============================================
 
 [[cards]]
-id = "builtin_019"
+id = "builtin_015"
 name = "Healer Angel"
 card_type = "creature"
 cost = "3"
@@ -313,24 +253,7 @@ power = "2"
 toughness = "2"
 
 [[cards]]
-id = "builtin_020"
-name = "Visionary Scout"
-card_type = "creature"
-cost = "2"
-description = "When this enters the battlefield, draw a card"
-
-[[cards.abilities]]
-trigger = "etb"
-effect = "draw"
-[cards.abilities.params]
-amount = "1"
-
-[cards.stats]
-power = "1"
-toughness = "1"
-
-[[cards]]
-id = "builtin_021"
+id = "builtin_016"
 name = "Benevolent Mage"
 card_type = "creature"
 cost = "4"

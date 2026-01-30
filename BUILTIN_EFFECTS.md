@@ -4,12 +4,14 @@ This document describes all available builtin card effects that can be used in T
 
 ## Overview
 
-Cardinal supports a comprehensive set of builtin effects that can be specified entirely in TOML using the `effect` and `params` fields. These effects mirror the capabilities of the Rhai scripting system, allowing game designers to create complex cards without writing any code.
+Cardinal supports a set of builtin effects that can be specified entirely in TOML using the `effect` and `params` fields. These effects allow game designers to create cards without writing any code.
+
+**Note:** The `draw` effect is not yet fully implemented (returns empty commands). For complex effects or those not yet supported, use Rhai scripting instead (see [SCRIPTING_GUIDE.md](SCRIPTING_GUIDE.md)).
 
 ## Effect Format
 
 Each card ability has two parts:
-- `effect`: The name of the effect (e.g., "damage", "gain_life", "draw")
+- `effect`: The name of the effect (e.g., "damage", "gain_life")
 - `params`: A table of parameters specific to that effect
 
 Example:
@@ -56,7 +58,7 @@ Lose life (similar to damage but doesn't trigger damage-related effects).
 
 **Parameters:**
 - `amount` (required): The amount of life to lose
-- `player` (optional): The player who loses life (default: controller)
+- `player` (optional, default: controller): The player who loses life
 
 **Example:**
 ```toml
@@ -71,7 +73,7 @@ Set a player's life to a specific value.
 
 **Parameters:**
 - `amount` (required): The new life total
-- `player` (optional): The target player (default: controller)
+- `player` (optional, default: controller): The target player
 
 **Example:**
 ```toml
@@ -81,10 +83,12 @@ amount = "20"
 player = "0"
 ```
 
-### Card Draw & Zone Manipulation
+### Card Draw
 
 #### `draw`
 Draw cards from the deck.
+
+**Status:** ⚠️ Not yet fully implemented (currently returns empty commands)
 
 **Parameters:**
 - `amount` (required): The number of cards to draw
@@ -96,43 +100,15 @@ effect = "draw"
 amount = "2"
 ```
 
-#### `mill_cards`
-Move cards from the top of a player's deck to their graveyard.
-
-**Parameters:**
-- `count` (required): The number of cards to mill
-- `player` (optional): The target player (default: controller)
-
-**Example:**
-```toml
-effect = "mill_cards"
-[params]
-count = "3"
-player = "1"
-```
-
-#### `discard_cards`
-Move cards from a player's hand to their graveyard.
-
-**Parameters:**
-- `count` (required): The number of cards to discard
-- `player` (optional): The target player (default: controller)
-
-**Example:**
-```toml
-effect = "discard_cards"
-[params]
-count = "2"
-player = "1"
-```
+### Card Movement
 
 #### `move_card`
 Move a card from one zone to another.
 
 **Parameters:**
-- `card` (optional): The card to move (default: source card)
-- `from_zone` (required): The origin zone (e.g., "hand", "graveyard", "field")
-- `to_zone` (required): The destination zone (e.g., "field", "hand", "graveyard")
+- `card` (optional, default: source card): The card to move
+- `from_zone` (optional, default: "hand"): The origin zone
+- `to_zone` (optional, default: "field"): The destination zone
 
 **Example:**
 ```toml
@@ -145,28 +121,13 @@ to_zone = "field"
 
 ### Creature Stat Modification
 
-#### `pump`
-Temporarily modify a creature's power and toughness (until end of turn).
-
-**Parameters:**
-- `power` (required): The power modifier (can be negative)
-- `toughness` (required): The toughness modifier (can be negative)
-
-**Example:**
-```toml
-effect = "pump"
-[params]
-power = "3"
-toughness = "3"
-```
-
 #### `set_stats`
 Set a creature's power and toughness to specific values.
 
 **Parameters:**
-- `card` (optional): The target card (default: source card)
-- `power` (required): The new power value
-- `toughness` (required): The new toughness value
+- `card` (optional, default: source card): The target card
+- `power` (optional, default: 0): The new power value
+- `toughness` (optional, default: 0): The new toughness value
 
 **Example:**
 ```toml
@@ -183,7 +144,7 @@ toughness = "1"
 Grant a keyword ability to a card (e.g., "flying", "haste", "vigilance").
 
 **Parameters:**
-- `card` (optional): The target card (default: source card)
+- `card` (optional, default: source card): The target card
 - `keyword` (required): The keyword to grant
 
 **Example:**
@@ -198,7 +159,7 @@ keyword = "flying"
 Remove a keyword ability from a card.
 
 **Parameters:**
-- `card` (optional): The target card (default: source card)
+- `card` (optional, default: source card): The target card
 - `keyword` (required): The keyword to remove
 
 **Example:**
@@ -215,9 +176,9 @@ keyword = "flying"
 Add resources to a player (e.g., mana, energy, action points).
 
 **Parameters:**
-- `resource` (required): The type of resource (e.g., "mana")
-- `amount` (required): The amount to gain
-- `player` (optional): The target player (default: controller)
+- `resource` (optional, default: "mana"): The type of resource
+- `amount` (required): The amount to gain (must be non-negative)
+- `player` (optional, default: controller): The target player
 
 **Example:**
 ```toml
@@ -232,9 +193,9 @@ player = "0"
 Remove resources from a player.
 
 **Parameters:**
-- `resource` (required): The type of resource (e.g., "mana")
-- `amount` (required): The amount to spend
-- `player` (optional): The target player (default: controller)
+- `resource` (optional, default: "mana"): The type of resource
+- `amount` (required): The amount to spend (must be non-negative)
+- `player` (optional, default: controller): The target player
 
 **Example:**
 ```toml
@@ -249,16 +210,16 @@ player = "1"
 Set a player's resource to a specific value.
 
 **Parameters:**
-- `resource` (required): The type of resource (e.g., "mana")
-- `amount` (required): The new resource value
-- `player` (optional): The target player (default: controller)
+- `resource` (optional, default: "mana"): The type of resource
+- `amount` (required): The new resource value (must be non-negative)
+- `player` (optional, default: controller): The target player
 
 **Example:**
 ```toml
 effect = "set_resource"
 [params]
 resource = "mana"
-amount = "0"
+amount = "10"
 player = "0"
 ```
 
@@ -268,9 +229,9 @@ player = "0"
 Add counters to a card (e.g., +1/+1 counters, charge counters).
 
 **Parameters:**
-- `card` (optional): The target card (default: source card)
-- `counter_type` (required): The type of counter (e.g., "+1/+1", "charge")
-- `amount` (required): The number of counters to add
+- `card` (optional, default: source card): The target card
+- `counter_type` (optional, default: "+1/+1"): The type of counter
+- `amount` (required): The number of counters to add (must be non-negative)
 
 **Example:**
 ```toml
@@ -285,9 +246,9 @@ amount = "2"
 Remove counters from a card.
 
 **Parameters:**
-- `card` (optional): The target card (default: source card)
-- `counter_type` (required): The type of counter (e.g., "+1/+1", "charge")
-- `amount` (required): The number of counters to remove
+- `card` (optional, default: source card): The target card
+- `counter_type` (optional, default: "+1/+1"): The type of counter
+- `amount` (required): The number of counters to remove (must be non-negative)
 
 **Example:**
 ```toml
@@ -304,9 +265,9 @@ amount = "1"
 Create a token card and place it in a zone.
 
 **Parameters:**
-- `player` (optional): The player who owns the token (default: controller)
-- `token_type` (required): The type of token (e.g., "1/1_soldier", "2/2_bear")
-- `zone` (required): The zone to place the token (e.g., "field", "hand")
+- `player` (optional, default: controller): The player who owns the token
+- `token_type` (optional, default: "1/1_soldier"): The type of token
+- `zone` (optional, default: "field"): The zone to place the token
 
 **Example:**
 ```toml
@@ -338,42 +299,37 @@ amount = "3"
 ### Creature with ETB Effect
 ```toml
 [[cards]]
-id = "wall_of_omens"
-name = "Wall of Omens"
+id = "healer_angel"
+name = "Healer Angel"
 card_type = "creature"
-cost = "2"
-description = "When Wall of Omens enters the battlefield, draw a card"
+cost = "3"
+description = "When this enters the battlefield, gain 3 life"
 
 [[cards.abilities]]
 trigger = "etb"
-effect = "draw"
-[cards.abilities.params]
-amount = "1"
-
-[cards.stats]
-power = "0"
-toughness = "4"
-```
-
-### Complex Multi-Effect Card (using multiple abilities)
-```toml
-[[cards]]
-id = "ancestral_vision"
-name = "Ancestral Vision"
-card_type = "spell"
-cost = "3"
-description = "Draw 3 cards and gain 3 life"
-
-[[cards.abilities]]
-trigger = "on_play"
-effect = "draw"
+effect = "gain_life"
 [cards.abilities.params]
 amount = "3"
 
+[cards.stats]
+power = "2"
+toughness = "2"
+```
+
+### Resource Generation
+```toml
+[[cards]]
+id = "mana_ritual"
+name = "Mana Ritual"
+card_type = "spell"
+cost = "1"
+description = "Gain 3 mana"
+
 [[cards.abilities]]
 trigger = "on_play"
-effect = "gain_life"
+effect = "gain_resource"
 [cards.abilities.params]
+resource = "mana"
 amount = "3"
 ```
 
@@ -383,12 +339,13 @@ amount = "3"
 - Player IDs are typically 0 (you) or 1 (opponent) in a two-player game
 - Zone names must match those defined in your `rules.toml` file
 - Card IDs referenced in parameters should be valid card IDs
-- If a parameter is marked as "optional", the effect will use a sensible default when the parameter is omitted
-- Some effects (like draw, mill, discard, move_card) may not be fully implemented yet but are structurally supported
+- Parameters marked as "optional" have default values that will be used if omitted
+- Negative amounts are not allowed for resource/counter operations to prevent unintended game states
+- The draw effect is not yet fully implemented
 
 ## Scripted Effects
 
-If the builtin effects don't meet your needs, you can still use Rhai scripts for more complex behavior. See [SCRIPTING_GUIDE.md](SCRIPTING_GUIDE.md) for details.
+For effects not supported by builtins or for more complex behavior, you can use Rhai scripts. See [SCRIPTING_GUIDE.md](SCRIPTING_GUIDE.md) for details.
 
 To use a scripted effect:
 ```toml
