@@ -1,0 +1,57 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "name": "Debug unit tests in library 'cardinal_kernel'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--package=cardinal-kernel"
+                ]
+            }
+        },
+        {
+            "name": "Debug integration test 'integration'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=integration",
+                    "--package=cardinal-kernel"
+                ]
+            }
+        },
+        {
+            "name": "Debug executable 'cardinal-cli'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--bin=cardinal-cli",
+                    "--package=cardinal-cli"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug unit tests in executable 'cardinal-cli'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--bin=cardinal-cli",
+                    "--package=cardinal-cli"
+                ]
+            }
+        }
+    ]
+}
