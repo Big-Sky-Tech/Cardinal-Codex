@@ -488,6 +488,96 @@ fn execute_builtin_effect(effect_str: &str, controller: PlayerId) -> Result<Vec<
             player: controller,
             delta: amount,
         }])
+    } else if effect_str.starts_with("lose_life_") {
+        // Format: lose_life_{amount}_player_{player_id}
+        let parts: Vec<&str> = effect_str.strip_prefix("lose_life_")
+            .unwrap_or("")
+            .split("_player_")
+            .collect();
+        
+        let amount = parts.get(0)
+            .and_then(|s| s.parse::<i32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid life amount in: {}", effect_str)))?;
+        let player = parts.get(1)
+            .and_then(|s| s.parse::<u8>().ok())
+            .unwrap_or(controller.0);
+        
+        if amount < 0 {
+            return Err(CardinalError(format!(
+                "Builtin lose_life effect has negative amount: {} (effect: {})",
+                amount, effect_str
+            )));
+        }
+        
+        Ok(vec![Command::ChangeLife {
+            player: PlayerId(player),
+            delta: -amount,
+        }])
+    } else if effect_str.starts_with("set_life_") {
+        // Format: set_life_{amount}_player_{player_id}
+        let parts: Vec<&str> = effect_str.strip_prefix("set_life_")
+            .unwrap_or("")
+            .split("_player_")
+            .collect();
+        
+        let amount = parts.get(0)
+            .and_then(|s| s.parse::<i32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid life amount in: {}", effect_str)))?;
+        let player = parts.get(1)
+            .and_then(|s| s.parse::<u8>().ok())
+            .unwrap_or(controller.0);
+        
+        if amount < 0 {
+            return Err(CardinalError(format!(
+                "Builtin set_life effect has negative amount: {} (effect: {})",
+                amount, effect_str
+            )));
+        }
+        
+        Ok(vec![Command::SetLife {
+            player: PlayerId(player),
+            amount,
+        }])
+    } else if effect_str.starts_with("mill_") {
+        // Format: mill_{count}_player_{player_id}
+        let parts: Vec<&str> = effect_str.strip_prefix("mill_")
+            .unwrap_or("")
+            .split("_player_")
+            .collect();
+        
+        let _count = parts.get(0)
+            .and_then(|s| s.parse::<i32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid mill count in: {}", effect_str)))?;
+        let _player = parts.get(1)
+            .and_then(|s| s.parse::<u8>().ok())
+            .unwrap_or(controller.0);
+        
+        // Placeholder: milling (deck to graveyard) is not implemented yet for builtin effects.
+        // Fail explicitly so game designers are not misled by a silent no-op.
+        Err(CardinalError(format!(
+            "Builtin effect '{}' is not implemented yet (milling is currently unsupported)",
+            effect_str
+        )))
+    } else if effect_str.starts_with("discard_") {
+        // Format: discard_{count}_player_{player_id}
+        let parts: Vec<&str> = effect_str.strip_prefix("discard_")
+            .unwrap_or("")
+            .split("_player_")
+            .collect();
+        
+        let _count = parts.get(0)
+            .and_then(|s| s.parse::<i32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid discard count in: {}", effect_str)))?;
+        let _player = parts.get(1)
+            .and_then(|s| s.parse::<u8>().ok())
+            .unwrap_or(controller.0);
+        
+        // Placeholder: discarding (hand to graveyard) is not implemented yet for builtin effects.
+        // Fail explicitly so game designers are not misled by a silent no-op.
+        Err(CardinalError(format!(
+            "Builtin effect '{}' is not implemented yet (discarding is currently unsupported)",
+            effect_str
+        )))
     } else if effect_str.starts_with("pump_") {
         let parts: Vec<&str> = effect_str.strip_prefix("pump_")
             .unwrap_or("")
@@ -503,9 +593,268 @@ fn execute_builtin_effect(effect_str: &str, controller: PlayerId) -> Result<Vec<
         
         // Note: pump can have negative values to reduce stats, so no validation here
         
-        // TODO: Implement creature stat modification
-        // For now, return empty (no creature tracking yet)
-        Ok(vec![])
+        // Placeholder: creature stat modification is not implemented yet for builtin effects.
+        // Fail explicitly so game designers are not misled by a silent no-op.
+        Err(CardinalError(format!(
+            "Builtin effect '{}' is not implemented yet (pump is currently unsupported)",
+            effect_str
+        )))
+    } else if effect_str.starts_with("set_stats_") {
+        // Format: set_stats_{card_id}_{power}_{toughness}
+        let parts: Vec<&str> = effect_str.strip_prefix("set_stats_")
+            .unwrap_or("")
+            .split('_')
+            .collect();
+        
+        let card = parts.get(0)
+            .and_then(|s| s.parse::<u32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid card id in: {}", effect_str)))?;
+        let power = parts.get(1)
+            .and_then(|s| s.parse::<i32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid power in: {}", effect_str)))?;
+        let toughness = parts.get(2)
+            .and_then(|s| s.parse::<i32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid toughness in: {}", effect_str)))?;
+        
+        Ok(vec![Command::SetStats {
+            card: CardId(card),
+            power,
+            toughness,
+        }])
+    } else if effect_str.starts_with("grant_keyword_") {
+        // Format: grant_keyword_{card_id}_{keyword}
+        let parts: Vec<&str> = effect_str.strip_prefix("grant_keyword_")
+            .unwrap_or("")
+            .splitn(2, '_')
+            .collect();
+        
+        let card = parts.get(0)
+            .and_then(|s| s.parse::<u32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid card id in: {}", effect_str)))?;
+        let keyword = parts.get(1)
+            .ok_or_else(|| CardinalError(format!("Missing keyword in: {}", effect_str)))?
+            .to_string();
+        
+        Ok(vec![Command::GrantKeyword {
+            card: CardId(card),
+            keyword,
+        }])
+    } else if effect_str.starts_with("remove_keyword_") {
+        // Format: remove_keyword_{card_id}_{keyword}
+        let parts: Vec<&str> = effect_str.strip_prefix("remove_keyword_")
+            .unwrap_or("")
+            .splitn(2, '_')
+            .collect();
+        
+        let card = parts.get(0)
+            .and_then(|s| s.parse::<u32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid card id in: {}", effect_str)))?;
+        let keyword = parts.get(1)
+            .ok_or_else(|| CardinalError(format!("Missing keyword in: {}", effect_str)))?
+            .to_string();
+        
+        Ok(vec![Command::RemoveKeyword {
+            card: CardId(card),
+            keyword,
+        }])
+    } else if effect_str.starts_with("gain_resource_") {
+        // Format: gain_resource_{player_id}_{resource_name}_{amount}
+        let parts: Vec<&str> = effect_str.strip_prefix("gain_resource_")
+            .unwrap_or("")
+            .splitn(3, '_')
+            .collect();
+        
+        let player = parts.get(0)
+            .and_then(|s| s.parse::<u8>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid player id in: {}", effect_str)))?;
+        let resource = parts.get(1)
+            .ok_or_else(|| CardinalError(format!("Missing resource name in: {}", effect_str)))?
+            .to_string();
+        let amount = parts.get(2)
+            .and_then(|s| s.parse::<i32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid amount in: {}", effect_str)))?;
+        
+        if amount < 0 {
+            return Err(CardinalError(format!(
+                "Builtin gain_resource effect has negative amount: {} (effect: {})",
+                amount, effect_str
+            )));
+        }
+        
+        Ok(vec![Command::GainResource {
+            player: PlayerId(player),
+            resource,
+            amount,
+        }])
+    } else if effect_str.starts_with("spend_resource_") {
+        // Format: spend_resource_{player_id}_{resource_name}_{amount}
+        let parts: Vec<&str> = effect_str.strip_prefix("spend_resource_")
+            .unwrap_or("")
+            .splitn(3, '_')
+            .collect();
+        
+        let player = parts.get(0)
+            .and_then(|s| s.parse::<u8>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid player id in: {}", effect_str)))?;
+        let resource = parts.get(1)
+            .ok_or_else(|| CardinalError(format!("Missing resource name in: {}", effect_str)))?
+            .to_string();
+        let amount = parts.get(2)
+            .and_then(|s| s.parse::<i32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid amount in: {}", effect_str)))?;
+        
+        if amount < 0 {
+            return Err(CardinalError(format!(
+                "Builtin spend_resource effect has negative amount: {} (effect: {})",
+                amount, effect_str
+            )));
+        }
+        
+        Ok(vec![Command::SpendResource {
+            player: PlayerId(player),
+            resource,
+            amount,
+        }])
+    } else if effect_str.starts_with("set_resource_") {
+        // Format: set_resource_{player_id}_{resource_name}_{amount}
+        let parts: Vec<&str> = effect_str.strip_prefix("set_resource_")
+            .unwrap_or("")
+            .splitn(3, '_')
+            .collect();
+        
+        let player = parts.get(0)
+            .and_then(|s| s.parse::<u8>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid player id in: {}", effect_str)))?;
+        let resource = parts.get(1)
+            .ok_or_else(|| CardinalError(format!("Missing resource name in: {}", effect_str)))?
+            .to_string();
+        let amount = parts.get(2)
+            .and_then(|s| s.parse::<i32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid amount in: {}", effect_str)))?;
+        
+        if amount < 0 {
+            return Err(CardinalError(format!(
+                "Builtin set_resource effect has negative amount: {} (effect: {})",
+                amount, effect_str
+            )));
+        }
+        
+        Ok(vec![Command::SetResource {
+            player: PlayerId(player),
+            resource,
+            amount,
+        }])
+    } else if effect_str.starts_with("add_counter_") {
+        // Format: add_counter_{card_id}_{counter_type}_{amount}
+        let parts: Vec<&str> = effect_str.strip_prefix("add_counter_")
+            .unwrap_or("")
+            .splitn(3, '_')
+            .collect();
+        
+        let card = parts.get(0)
+            .and_then(|s| s.parse::<u32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid card id in: {}", effect_str)))?;
+        let counter_type = parts.get(1)
+            .ok_or_else(|| CardinalError(format!("Missing counter type in: {}", effect_str)))?
+            .to_string();
+        let amount = parts.get(2)
+            .and_then(|s| s.parse::<i32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid amount in: {}", effect_str)))?;
+        
+        if amount < 0 {
+            return Err(CardinalError(format!(
+                "Builtin add_counter effect has negative amount: {} (effect: {})",
+                amount, effect_str
+            )));
+        }
+        
+        Ok(vec![Command::AddCounter {
+            card: CardId(card),
+            counter_type,
+            amount,
+        }])
+    } else if effect_str.starts_with("remove_counter_") {
+        // Format: remove_counter_{card_id}_{counter_type}_{amount}
+        let parts: Vec<&str> = effect_str.strip_prefix("remove_counter_")
+            .unwrap_or("")
+            .splitn(3, '_')
+            .collect();
+        
+        let card = parts.get(0)
+            .and_then(|s| s.parse::<u32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid card id in: {}", effect_str)))?;
+        let counter_type = parts.get(1)
+            .ok_or_else(|| CardinalError(format!("Missing counter type in: {}", effect_str)))?
+            .to_string();
+        let amount = parts.get(2)
+            .and_then(|s| s.parse::<i32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid amount in: {}", effect_str)))?;
+        
+        if amount < 0 {
+            return Err(CardinalError(format!(
+                "Builtin remove_counter effect has negative amount: {} (effect: {})",
+                amount, effect_str
+            )));
+        }
+        
+        Ok(vec![Command::RemoveCounter {
+            card: CardId(card),
+            counter_type,
+            amount,
+        }])
+    } else if effect_str.starts_with("create_token_") {
+        // Format: create_token_{player_id}_{token_type}_{zone}
+        // Note: token_type can contain underscores (e.g., "1/1_soldier")
+        // Strategy: split to get player, then find last underscore for zone
+        let rest = effect_str.strip_prefix("create_token_")
+            .unwrap_or("");
+        
+        // Split once to get player
+        let mut parts = rest.splitn(2, '_');
+        let player = parts.next()
+            .and_then(|s| s.parse::<u8>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid player id in: {}", effect_str)))?;
+        
+        let remainder = parts.next()
+            .ok_or_else(|| CardinalError(format!("Missing token type and zone in: {}", effect_str)))?;
+        
+        // Find the last underscore to split token_type from zone
+        let last_underscore = remainder.rfind('_')
+            .ok_or_else(|| CardinalError(format!("Missing zone separator in: {}", effect_str)))?;
+        
+        let token_type = remainder[..last_underscore].to_string();
+        let zone_str = &remainder[last_underscore + 1..];
+        
+        let zone = string_to_zone_id(zone_str);
+        
+        Ok(vec![Command::CreateToken {
+            player: PlayerId(player),
+            token_type,
+            zone,
+        }])
+    } else if effect_str.starts_with("move_card_") {
+        // Format: move_card_{card_id}_{from_zone}_{to_zone}
+        let parts: Vec<&str> = effect_str.strip_prefix("move_card_")
+            .unwrap_or("")
+            .splitn(3, '_')
+            .collect();
+        
+        let card = parts.get(0)
+            .and_then(|s| s.parse::<u32>().ok())
+            .ok_or_else(|| CardinalError(format!("Invalid card id in: {}", effect_str)))?;
+        let from_zone_str = parts.get(1)
+            .ok_or_else(|| CardinalError(format!("Missing from_zone in: {}", effect_str)))?;
+        let to_zone_str = parts.get(2)
+            .ok_or_else(|| CardinalError(format!("Missing to_zone in: {}", effect_str)))?;
+        
+        let from_zone = string_to_zone_id(from_zone_str);
+        let to_zone = string_to_zone_id(to_zone_str);
+        
+        Ok(vec![Command::MoveCard {
+            card: CardId(card),
+            from: from_zone,
+            to: to_zone,
+        }])
     } else {
         Err(CardinalError(format!("Unknown builtin effect type: {}", effect_str)))
     }
@@ -606,11 +955,9 @@ mod tests {
         let state = minimal_game_state();
         
         let result = execute_effect(&effect, None, controller, &state, None);
-        assert!(result.is_ok());
-        
-        // Pump not yet implemented, should return empty
-        let commands = result.unwrap();
-        assert_eq!(commands.len(), 0);
+        // Pump not yet implemented, should return error
+        assert!(result.is_err());
+        assert!(result.unwrap_err().0.contains("not implemented yet"));
     }
     
     #[test]
@@ -1241,5 +1588,268 @@ mod tests {
         
         let commands = result.unwrap();
         assert_eq!(commands.len(), 3);
+    }
+    
+    // ===================================================================
+    // TESTS FOR NEW BUILTIN EFFECTS
+    // ===================================================================
+    
+    #[test]
+    fn test_builtin_lose_life() {
+        let effect = EffectRef::Builtin("lose_life_3_player_0");
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, None);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::ChangeLife { player, delta } => {
+                assert_eq!(*player, PlayerId(0));
+                assert_eq!(*delta, -3);
+            }
+            _ => panic!("Expected ChangeLife command"),
+        }
+    }
+    
+    #[test]
+    fn test_builtin_set_life() {
+        let effect = EffectRef::Builtin("set_life_20_player_1");
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, None);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::SetLife { player, amount } => {
+                assert_eq!(*player, PlayerId(1));
+                assert_eq!(*amount, 20);
+            }
+            _ => panic!("Expected SetLife command"),
+        }
+    }
+    
+    #[test]
+    fn test_builtin_set_stats() {
+        let effect = EffectRef::Builtin("set_stats_5_3_4");
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, None);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::SetStats { card, power, toughness } => {
+                assert_eq!(*card, CardId(5));
+                assert_eq!(*power, 3);
+                assert_eq!(*toughness, 4);
+            }
+            _ => panic!("Expected SetStats command"),
+        }
+    }
+    
+    #[test]
+    fn test_builtin_grant_keyword() {
+        let effect = EffectRef::Builtin("grant_keyword_10_flying");
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, None);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::GrantKeyword { card, keyword } => {
+                assert_eq!(*card, CardId(10));
+                assert_eq!(keyword, "flying");
+            }
+            _ => panic!("Expected GrantKeyword command"),
+        }
+    }
+    
+    #[test]
+    fn test_builtin_remove_keyword() {
+        let effect = EffectRef::Builtin("remove_keyword_10_haste");
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, None);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::RemoveKeyword { card, keyword } => {
+                assert_eq!(*card, CardId(10));
+                assert_eq!(keyword, "haste");
+            }
+            _ => panic!("Expected RemoveKeyword command"),
+        }
+    }
+    
+    #[test]
+    fn test_builtin_gain_resource() {
+        let effect = EffectRef::Builtin("gain_resource_0_mana_3");
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, None);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::GainResource { player, resource, amount } => {
+                assert_eq!(*player, PlayerId(0));
+                assert_eq!(resource, "mana");
+                assert_eq!(*amount, 3);
+            }
+            _ => panic!("Expected GainResource command"),
+        }
+    }
+    
+    #[test]
+    fn test_builtin_spend_resource() {
+        let effect = EffectRef::Builtin("spend_resource_1_mana_2");
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, None);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::SpendResource { player, resource, amount } => {
+                assert_eq!(*player, PlayerId(1));
+                assert_eq!(resource, "mana");
+                assert_eq!(*amount, 2);
+            }
+            _ => panic!("Expected SpendResource command"),
+        }
+    }
+    
+    #[test]
+    fn test_builtin_set_resource() {
+        let effect = EffectRef::Builtin("set_resource_0_energy_10");
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, None);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::SetResource { player, resource, amount } => {
+                assert_eq!(*player, PlayerId(0));
+                assert_eq!(resource, "energy");
+                assert_eq!(*amount, 10);
+            }
+            _ => panic!("Expected SetResource command"),
+        }
+    }
+    
+    #[test]
+    fn test_builtin_add_counter() {
+        let effect = EffectRef::Builtin("add_counter_7_+1/+1_2");
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, None);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::AddCounter { card, counter_type, amount } => {
+                assert_eq!(*card, CardId(7));
+                assert_eq!(counter_type, "+1/+1");
+                assert_eq!(*amount, 2);
+            }
+            _ => panic!("Expected AddCounter command"),
+        }
+    }
+    
+    #[test]
+    fn test_builtin_remove_counter() {
+        let effect = EffectRef::Builtin("remove_counter_7_charge_1");
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, None);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::RemoveCounter { card, counter_type, amount } => {
+                assert_eq!(*card, CardId(7));
+                assert_eq!(counter_type, "charge");
+                assert_eq!(*amount, 1);
+            }
+            _ => panic!("Expected RemoveCounter command"),
+        }
+    }
+    
+    #[test]
+    fn test_builtin_create_token() {
+        let effect = EffectRef::Builtin("create_token_0_1/1_soldier_field");
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, None);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::CreateToken { player, token_type, zone: _ } => {
+                assert_eq!(*player, PlayerId(0));
+                assert_eq!(token_type, "1/1_soldier");
+            }
+            _ => panic!("Expected CreateToken command"),
+        }
+    }
+    
+    #[test]
+    fn test_builtin_move_card() {
+        let effect = EffectRef::Builtin("move_card_15_graveyard_hand");
+        let controller = PlayerId(0);
+        let state = minimal_game_state();
+        
+        let result = execute_effect(&effect, None, controller, &state, None);
+        assert!(result.is_ok());
+        
+        let commands = result.unwrap();
+        assert_eq!(commands.len(), 1);
+        
+        match &commands[0] {
+            Command::MoveCard { card, from, to } => {
+                assert_eq!(*card, CardId(15));
+                assert_eq!(*from, ZoneId("graveyard"));
+                assert_eq!(*to, ZoneId("hand"));
+            }
+            _ => panic!("Expected MoveCard command"),
+        }
     }
 }
