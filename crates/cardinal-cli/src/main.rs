@@ -39,6 +39,99 @@ enum Commands {
         /// Output directory
         output: String,
     },
+    /// Validate game assets (rules, cards, scripts, or packs)
+    Validate {
+        #[command(subcommand)]
+        target: ValidateTarget,
+    },
+    /// Compile game assets into optimized artifacts
+    Compile {
+        #[command(subcommand)]
+        target: CompileTarget,
+    },
+    /// Test and simulate game scenarios
+    Test {
+        #[command(subcommand)]
+        target: TestTarget,
+    },
+}
+
+#[derive(Subcommand)]
+enum ValidateTarget {
+    /// Validate a rules.toml file
+    Rules {
+        /// Path to rules.toml file
+        path: String,
+    },
+    /// Validate a single card TOML file
+    Card {
+        /// Path to card .toml file
+        path: String,
+    },
+    /// Validate a cards directory
+    CardsDir {
+        /// Path to cards directory
+        path: String,
+    },
+    /// Validate a cards.toml file
+    CardsFile {
+        /// Path to cards.toml file
+        path: String,
+    },
+    /// Validate a Rhai script file
+    Script {
+        /// Path to .rhai script file
+        path: String,
+    },
+    /// Validate a pack directory before building
+    Pack {
+        /// Path to pack directory
+        path: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum CompileTarget {
+    /// Compile a pack directory into a .ccpack file (with validation)
+    Pack {
+        /// Input directory containing pack.toml
+        input: String,
+        /// Output .ccpack file path
+        output: String,
+        /// Skip validation before compiling
+        #[arg(long)]
+        no_validate: bool,
+        /// Enable verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum TestTarget {
+    /// Run a basic game simulation test
+    Game {
+        /// Path to rules.toml file
+        #[arg(short, long, default_value = "./rules.toml")]
+        rules: String,
+        /// Random seed for deterministic testing
+        #[arg(short, long, default_value = "42")]
+        seed: u64,
+        /// Number of cards in starting hand for testing
+        #[arg(long, default_value = "5")]
+        hand_size: usize,
+        /// Enable verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Test loading a .ccpack file
+    Pack {
+        /// Path to .ccpack file
+        pack: String,
+        /// Enable verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
 }
 
 fn main() {
@@ -65,6 +158,15 @@ fn main() {
                 eprintln!("Error unpacking: {}", e);
                 std::process::exit(1);
             }
+        }
+        Some(Commands::Validate { target }) => {
+            handle_validation(target);
+        }
+        Some(Commands::Compile { target }) => {
+            handle_compilation(target);
+        }
+        Some(Commands::Test { target }) => {
+            handle_testing(target);
         }
         None => {
             // Default: run the game with default rules
@@ -367,6 +469,132 @@ fn handle_pass_priority(engine: &mut GameEngine, display: &mut GameDisplay, play
         }
         Err(e) => {
             println!("Cannot pass priority: {:?}", e);
+        }
+    }
+}
+
+fn handle_validation(target: ValidateTarget) {
+    use cardinal::validation::*;
+
+    let result = match target {
+        ValidateTarget::Rules { path } => {
+            println!("Validating rules file: {}", path);
+            match validate_rules(&path) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("Validation error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        ValidateTarget::Card { path } => {
+            println!("Validating card file: {}", path);
+            match validate_card(&path) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("Validation error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        ValidateTarget::CardsDir { path } => {
+            println!("Validating cards directory: {}", path);
+            match validate_cards_dir(&path) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("Validation error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        ValidateTarget::CardsFile { path } => {
+            println!("Validating cards file: {}", path);
+            match validate_cards_file(&path) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("Validation error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        ValidateTarget::Script { path } => {
+            println!("Validating script file: {}", path);
+            match validate_script(&path) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("Validation error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        ValidateTarget::Pack { path } => {
+            println!("Validating pack directory: {}", path);
+            match validate_pack(&path) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("Validation error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+    };
+
+    print_validation_result(&result, "Asset");
+
+    if !result.is_valid {
+        std::process::exit(1);
+    }
+}
+
+fn handle_compilation(target: CompileTarget) {
+    use cardinal::compile::*;
+
+    match target {
+        CompileTarget::Pack { input, output, no_validate, verbose } => {
+            let options = CompileOptions {
+                validate: !no_validate,
+                verbose,
+            };
+
+            if let Err(e) = compile_pack(&input, &output, options) {
+                eprintln!("Compilation error: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+}
+
+fn handle_testing(target: TestTarget) {
+    use cardinal::testing::*;
+
+    match target {
+        TestTarget::Game { rules, seed, hand_size, verbose } => {
+            let options = TestOptions {
+                seed,
+                starting_hand_size: hand_size,
+                verbose,
+            };
+
+            match run_basic_test(&rules, options) {
+                Ok(summary) => {
+                    println!("\n{}", summary);
+                }
+                Err(e) => {
+                    eprintln!("Test error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        TestTarget::Pack { pack, verbose } => {
+            match test_pack_loading(&pack, verbose) {
+                Ok(summary) => {
+                    println!("\n{}", summary);
+                }
+                Err(e) => {
+                    eprintln!("Test error: {}", e);
+                    std::process::exit(1);
+                }
+            }
         }
     }
 }

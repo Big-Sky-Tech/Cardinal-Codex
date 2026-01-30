@@ -8,6 +8,7 @@ A **headless, deterministic game engine** for trading card games (TCGs). Define 
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** — Deep dive into design principles
 - **[crates/cardinal/README.md](crates/cardinal/README.md)** — API documentation
 - **[crates/cardinal-cli/README.md](crates/cardinal-cli/README.md)** — Interactive game guide
+- **[docs/CLI_USAGE_GUIDE.md](docs/CLI_USAGE_GUIDE.md)** — CLI tools for validation, compilation, and testing
 
 ## Features
 
@@ -18,6 +19,7 @@ A **headless, deterministic game engine** for trading card games (TCGs). Define 
 ✅ **Event-Based** — Complete game log for replays and debugging  
 ✅ **Well-Tested** — 31 tests covering core systems and scripting  
 ✅ **Clean Architecture** — Clear separation of concerns  
+✅ **Production-Ready Tooling** — Comprehensive validation, compilation, and testing tools  
 
 ## Getting Started
 
@@ -28,6 +30,31 @@ cargo run --bin cardinal-cli
 ```
 
 Interactive terminal game with colored output and real-time state rendering.
+
+### Validate Your Game Assets
+
+```bash
+# Validate rules
+cardinal-cli validate rules rules.toml
+
+# Validate cards
+cardinal-cli validate cards-dir cards/
+
+# Validate an entire pack
+cardinal-cli validate pack my-pack/
+```
+
+See [CLI_USAGE_GUIDE.md](docs/CLI_USAGE_GUIDE.md) for complete CLI documentation.
+
+### Build Game Artifacts
+
+```bash
+# Compile a pack with validation
+cardinal-cli compile pack my-pack/ output/game.ccpack --verbose
+
+# Test the pack
+cardinal-cli test pack output/game.ccpack
+```
 
 ### Run Tests
 
