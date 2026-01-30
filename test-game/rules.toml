@@ -1,0 +1,211 @@
+# Test Game Rules Configuration
+# A minimal working example of a Cardinal game
+
+[game]
+id = "test_game"
+name = "Cardinal Test Game"
+version = "0.1.0"
+description = "A simple example game demonstrating Cardinal engine basics"
+
+# Player rules
+[players]
+min_players = 2
+max_players = 2
+starting_life = 20
+max_life = 9999
+starting_hand_size = 3
+max_hand_size = 10
+min_deck_size = 3
+max_deck_size = 60
+mulligan_rule = "none"
+first_player_rule = "random"
+
+# Starting resources
+[players.starting_resources]
+mana = 3
+
+# Resources
+[[resources]]
+id = "mana"
+name = "Mana"
+description = "Basic spendable resource"
+min_value = 0
+max_value = 20
+
+# Actions
+[[actions]]
+id = "draw_card"
+name = "Draw Card"
+description = "Draw a card from deck to hand"
+source_zones = ["deck"]
+target_zone = "hand"
+speed = "system"
+
+[[actions]]
+id = "play_card"
+name = "Play Card"
+description = "Play a card from hand to the field"
+source_zones = ["hand"]
+target_zone = "field"
+speed = "main"
+requires_empty_stack = true
+
+# Stack configuration
+[stack]
+enabled = true
+resolve_order = "last_in_first_out"
+auto_resolve_on_pass = true
+
+# Trigger kinds
+[[trigger_kinds]]
+id = "on_play"
+description = "Triggers when card is played"
+
+[[trigger_kinds]]
+id = "on_enter_field"
+description = "Triggers when card enters the field"
+
+# Keywords
+[[keywords]]
+id = "quick"
+name = "Quick"
+description = "Can be played at instant speed"
+
+# Win conditions
+[[win_conditions]]
+id = "opponent_life_zero"
+description = "Win when opponent reaches 0 life"
+priority = 1
+
+# Loss conditions
+[[loss_conditions]]
+id = "draw_from_empty_deck"
+description = "Lose if you draw from empty deck"
+priority = 1
+
+# Turn structure
+[turn]
+priority_system = true
+skip_first_turn_draw_for_first_player = false
+
+# Turn structure
+[[turn.phases]]
+id = "start"
+name = "Start Phase"
+order = 1
+allow_actions = false
+
+[[turn.phases.steps]]
+id = "untap"
+name = "Untap"
+order = 1
+allow_actions = false
+allow_triggers = true
+
+[[turn.phases.steps]]
+id = "draw"
+name = "Draw"
+order = 2
+allow_actions = false
+allow_triggers = true
+
+[[turn.phases]]
+id = "main"
+name = "Main Phase"
+order = 2
+allow_actions = true
+
+[[turn.phases.steps]]
+id = "main"
+name = "Main"
+order = 1
+allow_actions = true
+allow_triggers = true
+
+[[turn.phases]]
+id = "end"
+name = "End Phase"
+order = 3
+allow_actions = false
+
+[[turn.phases.steps]]
+id = "cleanup"
+name = "Cleanup"
+order = 1
+allow_actions = false
+allow_triggers = true
+
+# Game zones
+[[zones]]
+id = "hand"
+name = "Hand"
+owner_scope = "player"
+visibility = "private"
+ordered = false
+allow_duplicates = true
+
+[[zones]]
+id = "deck"
+name = "Deck"
+owner_scope = "player"
+visibility = "private"
+ordered = true
+allow_duplicates = true
+
+[[zones]]
+id = "field"
+name = "Battlefield"
+owner_scope = "player"
+visibility = "public"
+ordered = true
+allow_duplicates = true
+
+[[zones]]
+id = "graveyard"
+name = "Graveyard"
+owner_scope = "player"
+visibility = "public"
+ordered = true
+allow_duplicates = true
+
+[[zones]]
+id = "stack"
+name = "Stack"
+owner_scope = "shared"
+visibility = "public"
+ordered = true
+allow_duplicates = true
+
+# Simple test cards
+[[cards]]
+id = "test_creature"
+name = "Test Creature"
+card_type = "Creature"
+cost = "2"
+description = "A simple test creature for demonstration"
+
+[cards.stats]
+power = "2"
+toughness = "2"
+
+[[cards]]
+id = "test_spell"
+name = "Test Spell"
+card_type = "Spell"
+cost = "1"
+description = "A simple test spell"
+
+[cards.stats]
+power = "0"
+toughness = "0"
+
+[[cards]]
+id = "strong_creature"
+name = "Strong Creature"
+card_type = "Creature"
+cost = "3"
+description = "A stronger creature with better stats"
+
+[cards.stats]
+power = "3"
+toughness = "3"
