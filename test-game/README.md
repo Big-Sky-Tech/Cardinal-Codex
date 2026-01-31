@@ -149,7 +149,8 @@ To create your own game based on this template:
 ```rust
 let rules = cardinal::load_game_config(rules_path, None)?;
 let initial_state = GameState::from_ruleset(&rules);
-let state = cardinal::initialize_game(state, &rules, seed);
+// Populate player decks and other zones on `initial_state` here; see src/main.rs for a full example.
+let state = cardinal::initialize_game(initial_state, &rules, seed);
 let engine = GameEngine::new(rules, seed, state);
 ```
 

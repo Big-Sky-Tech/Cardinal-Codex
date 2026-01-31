@@ -20,10 +20,6 @@ max_deck_size = 60
 mulligan_rule = "none"
 first_player_rule = "random"
 
-# Starting resources
-[players.starting_resources]
-mana = 3
-
 # Resources
 [[resources]]
 id = "mana"
@@ -176,36 +172,5 @@ visibility = "public"
 ordered = true
 allow_duplicates = true
 
-# Simple test cards
-[[cards]]
-id = "test_creature"
-name = "Test Creature"
-card_type = "Creature"
-cost = "2"
-description = "A simple test creature for demonstration"
-
-[cards.stats]
-power = "2"
-toughness = "2"
-
-[[cards]]
-id = "test_spell"
-name = "Test Spell"
-card_type = "Spell"
-cost = "1"
-description = "A simple test spell"
-
-[cards.stats]
-power = "0"
-toughness = "0"
-
-[[cards]]
-id = "strong_creature"
-name = "Strong Creature"
-card_type = "Creature"
-cost = "3"
-description = "A stronger creature with better stats"
-
-[cards.stats]
-power = "3"
-toughness = "3"
+# Note: Card definitions are loaded from the cards/ directory
+# See cards/goblin_warrior.toml, cards/healing_potion.toml, and cards/fireball.toml

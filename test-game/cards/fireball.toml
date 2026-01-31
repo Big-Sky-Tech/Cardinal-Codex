@@ -14,4 +14,3 @@ effect = "damage"
 
 [abilities.params]
 amount = "3"
-target = "opponent"
