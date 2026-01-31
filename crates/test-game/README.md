@@ -182,9 +182,9 @@ The game uses a fixed seed (42) so the same sequence of actions will always prod
    - `docs/SCRIPTING_GUIDE.md` - Advanced card scripting
 
 3. **Study the examples**
-   - `examples/example-pack/` - Complete card pack
-   - `examples/builtin_effects_showcase.toml` - Effect examples
-   - `crates/cardinal-cli/` - Full interactive game
+   - `../examples/example-pack/` - Complete card pack
+   - `../examples/builtin_effects_showcase.toml` - Effect examples
+   - `../crates/cardinal-cli/` - Full interactive game
 
 4. **Experiment**
    - Add more cards
@@ -222,8 +222,8 @@ You can copy this folder, customize it, and have a working foundation for your o
 ## Support
 
 - **Issue Tracker** - https://github.com/Big-Sky-Tech/Cardinal-Codex/issues
-- **Documentation** - See `docs/` directory
-- **Examples** - See `examples/` directory
+- **Documentation** - See `../docs/` directory
+- **Examples** - See `../examples/` directory
 
 ---
 

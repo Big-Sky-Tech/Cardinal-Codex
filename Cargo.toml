@@ -2,6 +2,6 @@
 members = [
     "crates/cardinal",
     "crates/cardinal-cli",
-    "test-game",
+    "crates/test-game",
 ]
 resolver = "2"

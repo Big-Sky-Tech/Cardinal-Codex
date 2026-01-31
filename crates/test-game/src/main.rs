@@ -7,7 +7,7 @@ fn main() {
     println!("====================================\n");
 
     // Load game configuration
-    let rules_path = "test-game/rules.toml";
+    let rules_path = "crates/test-game/rules.toml";
     println!("Loading game rules from: {}", rules_path);
     
     let rules = match cardinal::load_game_config(rules_path, None) {
