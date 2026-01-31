@@ -1,0 +1,9 @@
+id = "goblin_warrior"
+name = "Goblin Warrior"
+card_type = "Creature"
+cost = "1"
+description = "A quick and aggressive goblin creature"
+
+[stats]
+power = "2"
+toughness = "1"

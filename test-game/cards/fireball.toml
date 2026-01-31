@@ -1,0 +1,16 @@
+id = "fireball"
+name = "Fireball"
+card_type = "Spell"
+cost = "2"
+description = "Deal 3 damage to any target"
+
+[stats]
+power = "0"
+toughness = "0"
+
+[[abilities]]
+trigger = "on_play"
+effect = "damage"
+
+[abilities.params]
+amount = "3"

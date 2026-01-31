@@ -1,0 +1,16 @@
+id = "healing_potion"
+name = "Healing Potion"
+card_type = "Spell"
+cost = "1"
+description = "Restore 3 life to any target"
+
+[stats]
+power = "0"
+toughness = "0"
+
+[[abilities]]
+trigger = "on_play"
+effect = "gain_life"
+
+[abilities.params]
+amount = "3"
