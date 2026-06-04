@@ -11,6 +11,7 @@ pub mod pack;
 pub mod validation;
 pub mod compile;
 pub mod testing;
+pub mod runtime;
 
 pub use engine::core::{GameEngine, StepResult};
 pub use engine::init::initialize_game;
@@ -18,6 +19,7 @@ pub use error::{EngineError, LegalityError};
 pub use model::action::Action;
 pub use model::command::Command;
 pub use model::event::Event;
+pub use runtime::GameRuntime;
 pub use rules::schema::Ruleset;
 pub use rules::card_loader::CardSource;
 pub use rules::RulesModule;

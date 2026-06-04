@@ -192,22 +192,20 @@ fn run_game(rules_path: &str) {
     println!("✓ Cards loaded: {}", rules.cards.len());
     println!();
 
-    // Create initial game state
-    let initial_state = GameState::from_ruleset(&rules);
+    // Create game engine and demo decks
+    let mut engine = GameEngine::new(rules, 42);
     println!("✓ Game state created");
 
-    // Create test decks (for demo)
-    let mut state = initial_state.clone();
-    populate_test_decks(&mut state, 5);
+    let decks = build_test_decks(engine.state().players.len(), 5);
     println!("✓ Test decks populated");
 
     // Initialize the game
-    let state = cardinal::initialize_game(state, &rules, 42);
+    if let Err(error) = engine.start_game(decks) {
+        eprintln!("Failed to initialize game: {:?}", error);
+        return;
+    }
     println!("✓ Game initialized");
     println!();
-
-    // Create game engine
-    let mut engine = GameEngine::new(rules, 42, state);
     let mut display = GameDisplay::new();
 
     println!("═══════════════════════════════════════════════════════════");
@@ -223,11 +221,13 @@ fn run_game(rules_path: &str) {
     loop {
         // Render current game state
         let viewer = PlayerId(0);
-        println!("{}", display.render_game(&engine.state, &engine.cards, viewer));
+        let visible_state = engine.player_view(viewer);
+        println!("{}", display.render_game(&visible_state, engine.cards(), viewer));
         println!();
 
-        let is_active = engine.state.turn.active_player == viewer;
-        let is_priority = engine.state.turn.priority_player == viewer;
+        let state = engine.state();
+        let is_active = state.turn.active_player == viewer;
+        let is_priority = state.turn.priority_player == viewer;
 
         // Show menu
         println!("{}", display.render_menu(is_active, is_priority));
@@ -287,25 +287,21 @@ fn run_game(rules_path: &str) {
     println!("Thanks for playing!");
 }
 
-fn populate_test_decks(state: &mut GameState, num_cards: usize) {
-    let num_players = state.players.len() as u8;
-    for player_idx in 0..num_players {
-        let _player_id = PlayerId(player_idx);
-        let deck_zone_id = format!("deck@{}", player_idx);
-
-        if let Some(deck) = state.zones.iter_mut().find(|z| z.id.0 == deck_zone_id) {
-            for i in 0..num_cards {
-                let card_id = cardinal::ids::CardId((player_idx as u32 * 100) + i as u32);
-                deck.cards.push(card_id);
-            }
-        }
-    }
+fn build_test_decks(num_players: usize, num_cards: usize) -> Vec<Vec<cardinal::ids::CardId>> {
+    (0..num_players)
+        .map(|player_idx| {
+            (0..num_cards)
+                .map(|card_idx| cardinal::ids::CardId((player_idx as u32 * 100) + card_idx as u32))
+                .collect()
+        })
+        .collect()
 }
 
 fn handle_play_card(engine: &mut GameEngine, display: &mut GameDisplay, player: PlayerId) {
     // Get hand zone
     let hand_zone_id = format!("hand@{}", player.0);
-    let hand_cards: Vec<_> = engine.state.zones.iter()
+    let player_view = engine.player_view(player);
+    let hand_cards: Vec<_> = player_view.zones.iter()
         .find(|z| z.id.0 == hand_zone_id)
         .map(|z| z.cards.clone())
         .unwrap_or_default();
@@ -317,7 +313,7 @@ fn handle_play_card(engine: &mut GameEngine, display: &mut GameDisplay, player: 
 
     println!("Select a card to play:");
     for (idx, card_id) in hand_cards.iter().enumerate() {
-        if let Some(card_def) = engine.cards.get(&card_id.0) {
+        if let Some(card_def) = engine.cards().get(&card_id.0) {
             println!("  [{}] {} ({})", idx + 1, card_def.name, card_def.card_type);
         } else {
             println!("  [{}] Card #{}", idx + 1, card_id.0);
@@ -336,37 +332,41 @@ fn handle_play_card(engine: &mut GameEngine, display: &mut GameDisplay, player: 
 
                 match engine.apply_action(player, Action::PlayCard { card: card_id, from: from_zone }) {
                     Ok(result) => {
-                        if let Some(card_def) = engine.cards.get(&card_id.0) {
+                        let state = engine.state();
+                        if let Some(card_def) = engine.cards().get(&card_id.0) {
                             display.log(
-                                engine.state.turn.number,
-                                &engine.state.turn.phase.0,
-                                &engine.state.turn.step.0,
+                                state.turn.number,
+                                &state.turn.phase.0,
+                                &state.turn.step.0,
                                 format!("You played: {}", card_def.name),
                             );
                         }
                         for event in &result.events {
                             match event {
                                 Event::CardPlayed { .. } => {
+                                    let state = engine.state();
                                     display.log(
-                                        engine.state.turn.number,
-                                        &engine.state.turn.phase.0,
-                                        &engine.state.turn.step.0,
+                                        state.turn.number,
+                                        &state.turn.phase.0,
+                                        &state.turn.step.0,
                                         "Card entered play".to_string(),
                                     );
                                 }
                                 Event::CardMoved { .. } => {
+                                    let state = engine.state();
                                     display.log(
-                                        engine.state.turn.number,
-                                        &engine.state.turn.phase.0,
-                                        &engine.state.turn.step.0,
+                                        state.turn.number,
+                                        &state.turn.phase.0,
+                                        &state.turn.step.0,
                                         "Card moved to field".to_string(),
                                     );
                                 }
                                 Event::StackResolved { .. } => {
+                                    let state = engine.state();
                                     display.log(
-                                        engine.state.turn.number,
-                                        &engine.state.turn.phase.0,
-                                        &engine.state.turn.step.0,
+                                        state.turn.number,
+                                        &state.turn.phase.0,
+                                        &state.turn.step.0,
                                         "Stack item resolved".to_string(),
                                     );
                                 }
@@ -389,7 +389,8 @@ fn handle_play_card(engine: &mut GameEngine, display: &mut GameDisplay, player: 
 
 fn handle_view_hand(engine: &GameEngine, display: &GameDisplay, player: PlayerId) {
     let hand_zone_id = format!("hand@{}", player.0);
-    let hand_cards: Vec<_> = engine.state.zones.iter()
+    let player_view = engine.player_view(player);
+    let hand_cards: Vec<_> = player_view.zones.iter()
         .find(|z| z.id.0 == hand_zone_id)
         .map(|z| z.cards.clone())
         .unwrap_or_default();
@@ -401,7 +402,7 @@ fn handle_view_hand(engine: &GameEngine, display: &GameDisplay, player: PlayerId
 
     println!();
     for (idx, card_id) in hand_cards.iter().enumerate() {
-        println!("{}", display.render_card_detail(&engine.cards, *card_id));
+        println!("{}", display.render_card_detail(engine.cards(), *card_id));
         if idx < hand_cards.len() - 1 {
             println!();
         }
@@ -411,7 +412,7 @@ fn handle_view_hand(engine: &GameEngine, display: &GameDisplay, player: PlayerId
 
 fn handle_view_field(engine: &GameEngine, player: PlayerId) {
     let field_zone_id = format!("field@{}", player.0);
-    let field = engine.state.zones.iter()
+    let field = engine.state().zones.iter()
         .find(|z| z.id.0 == field_zone_id);
 
     println!();
@@ -420,7 +421,7 @@ fn handle_view_field(engine: &GameEngine, player: PlayerId) {
             println!("Your field is empty!");
         } else {
             for (idx, card_id) in zone.cards.iter().enumerate() {
-                if let Some(card_def) = engine.cards.get(&card_id.0) {
+                if let Some(card_def) = engine.cards().get(&card_id.0) {
                     println!("[{}] {} ({})", idx + 1, card_def.name, card_def.card_type);
                 } else {
                     println!("[{}] Card #{}", idx + 1, card_id.0);
@@ -434,7 +435,7 @@ fn handle_view_field(engine: &GameEngine, player: PlayerId) {
 fn handle_view_opponent_field(engine: &GameEngine, player: PlayerId) {
     let opponent = if player.0 == 0 { PlayerId(1) } else { PlayerId(0) };
     let field_zone_id = format!("field@{}", opponent.0);
-    let field = engine.state.zones.iter()
+    let field = engine.state().zones.iter()
         .find(|z| z.id.0 == field_zone_id);
 
     println!();
@@ -459,10 +460,11 @@ fn handle_view_log(display: &GameDisplay) {
 fn handle_pass_priority(engine: &mut GameEngine, display: &mut GameDisplay, player: PlayerId) {
     match engine.apply_action(player, Action::PassPriority) {
         Ok(_result) => {
+            let state = engine.state();
             display.log(
-                engine.state.turn.number,
-                &engine.state.turn.phase.0,
-                &engine.state.turn.step.0,
+                state.turn.number,
+                &state.turn.phase.0,
+                &state.turn.step.0,
                 format!("Player {:?} passed priority", player),
             );
             println!("You passed priority.");
@@ -598,4 +600,3 @@ fn handle_testing(target: TestTarget) {
         }
     }
 }
-

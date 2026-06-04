@@ -25,15 +25,15 @@ Here's how any game that uses Cardinal works:
 
 ```python
 # 1. Create the engine
-engine = CardinalEngine.new(rules_file="rules.toml", seed=12345)
+engine = CardinalEngine.new(rules, seed=12345)
 
 # 2. Initialize the game
-engine.start_game(player1_deck, player2_deck)
+engine.start_game([player1_deck, player2_deck])
 
 # 3. Game loop
 while game_is_running:
     # Show the current state to the player
-    display(engine.state)
+    display(engine.player_view(player_id))
     
     # Get their action (e.g., "play card #5")
     action = input("What do you do?")
@@ -546,7 +546,7 @@ fn test_card_ability_etb_trigger() {
     engine.apply_action(player_0, Action::PlayCard { ... });
     
     // Assertion: Opponent took damage
-    assert_eq!(engine.state.players[1].life, 19);
+    assert_eq!(engine.public_state().players[1].life, 19);
 }
 ```
 
@@ -680,4 +680,3 @@ loop {
 - Explore the code: `crates/cardinal/src/engine/core.rs` is the entry point
 
 Cardinal is designed to be **clear and extensible**. Questions? The code is well-commented.
-

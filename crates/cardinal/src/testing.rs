@@ -6,7 +6,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 
-use crate::{GameEngine, GameState, Action, load_game_config};
+use crate::{GameEngine, Action, load_game_config};
 use crate::ids::PlayerId;
 use crate::error::CardinalError;
 
@@ -61,30 +61,17 @@ pub fn init_test_game<P: AsRef<Path>>(
         println!("  ✓ Loaded {} cards", ruleset.cards.len());
     }
 
-    // Create initial state
-    let initial_state = GameState::from_ruleset(&ruleset);
-
-    // Populate test decks
-    let mut state = initial_state;
-    populate_test_decks(&mut state, options.starting_hand_size);
+    let mut engine = GameEngine::new(ruleset, options.seed);
+    let decks = build_test_decks(engine.state().players.len(), options.starting_hand_size);
+    engine.start_game(decks)
+        .map_err(|e: CardinalError| anyhow::anyhow!(e.0))
+        .context("Failed to initialize game state")?;
 
     if options.verbose {
         println!("  ✓ Test decks populated");
-    }
-
-    // Initialize game
-    let state = crate::initialize_game(state, &ruleset, options.seed);
-
-    if options.verbose {
         println!("  ✓ Game initialized");
-    }
-
-    // Create engine
-    let engine = GameEngine::new(ruleset, options.seed, state);
-
-    if options.verbose {
         println!("\n✓ Test game ready!");
-        println!("  Players: {}", engine.state.players.len());
+        println!("  Players: {}", engine.state().players.len());
     }
 
     Ok(engine)
@@ -120,9 +107,9 @@ pub fn run_basic_test<P: AsRef<Path>>(
     for i in 0..5 {
         if verbose {
             println!("\nTurn {}, Phase: {}, Step: {}",
-                engine.state.turn.number,
-                engine.state.turn.phase.0,
-                engine.state.turn.step.0,
+                engine.state().turn.number,
+                engine.state().turn.phase.0,
+                engine.state().turn.step.0,
             );
         }
 
@@ -159,19 +146,15 @@ pub fn run_basic_test<P: AsRef<Path>>(
     Ok(summary)
 }
 
-/// Populate test decks with cards
-fn populate_test_decks(state: &mut GameState, num_cards: usize) {
-    let num_players = state.players.len() as u8;
-    for player_idx in 0..num_players {
-        let deck_zone_id = format!("deck@{}", player_idx);
-
-        if let Some(deck) = state.zones.iter_mut().find(|z| z.id.0 == deck_zone_id) {
-            for i in 0..num_cards {
-                let card_id = crate::ids::CardId((player_idx as u32 * 100) + i as u32);
-                deck.cards.push(card_id);
-            }
-        }
-    }
+/// Build deterministic test decks with placeholder card IDs.
+fn build_test_decks(num_players: usize, num_cards: usize) -> Vec<Vec<crate::ids::CardId>> {
+    (0..num_players)
+        .map(|player_idx| {
+            (0..num_cards)
+                .map(|card_idx| crate::ids::CardId((player_idx as u32 * 100) + card_idx as u32))
+                .collect()
+        })
+        .collect()
 }
 
 /// Test card loading from a pack

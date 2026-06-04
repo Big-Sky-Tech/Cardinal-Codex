@@ -301,7 +301,7 @@ Game ends. You lose.
 ```rust
 loop {
     // 1. Render current state
-    println!("{}", display.render_game(&engine.state));
+    println!("{}", display.render_game(&engine.player_view(player_id)));
     
     // 2. Show available actions
     println!("{}", display.render_menu());
@@ -532,7 +532,7 @@ use std::fs;
 use serde_json;
 
 // Save
-let state_json = serde_json::to_string(&engine.state)?;
+let state_json = serde_json::to_string(&engine.public_state())?;
 fs::write("game.json", state_json)?;
 
 // Load
@@ -593,4 +593,3 @@ Everything the CLI does is: "Read Cardinal's state → Show it to user → Get u
 - **Build your own UI** — Use the same Cardinal library in your own project
 
 The CLI shows that Cardinal is **embeddable and reusable**. You can use it in a web game, mobile app, or anything else.
-
