@@ -3,14 +3,15 @@ use crate::{
     ids::PlayerId,
     model::action::Action,
     model::event::Event,
-    rules::schema::Ruleset,
+    rules::schema::{Ruleset, ZoneDef, ZoneVisibility},
     state::gamestate::GameState,
     engine::scripting::RhaiEngine,
 };
+use std::collections::HashSet;
 
 pub struct GameEngine {
     pub rules: Ruleset,
-    pub state: GameState,
+    pub(crate) state: GameState,
     pub cards: crate::engine::cards::CardRegistry,
     pub scripting: RhaiEngine,
     seed: u64,
@@ -23,7 +24,12 @@ pub struct StepResult {
 }
 
 impl GameEngine {
-    pub fn new(rules: Ruleset, seed: u64, initial_state: GameState) -> Self {
+    pub fn new(rules: Ruleset, seed: u64) -> Self {
+        let initial_state = GameState::from_ruleset(&rules);
+        Self::with_state(rules, seed, initial_state)
+    }
+
+    pub fn with_state(rules: Ruleset, seed: u64, initial_state: GameState) -> Self {
         let cards = crate::engine::cards::build_registry(&rules.cards);
         let scripting = RhaiEngine::new();
         Self { rules, state: initial_state, cards, scripting, seed, next_choice_id: 1, next_stack_id: 1 }
@@ -32,22 +38,74 @@ impl GameEngine {
     /// Build a GameEngine directly from a `Ruleset`. This will create a minimal GameState
     /// via `GameState::from_ruleset`.
     pub fn from_ruleset(rules: Ruleset, seed: u64) -> Self {
-        let initial = GameState::from_ruleset(&rules);
-        let cards = crate::engine::cards::build_registry(&rules.cards);
-        let scripting = RhaiEngine::new();
-        
-        // Note: Script loading from files is intentionally NOT done here to maintain
-        // determinism in the core engine. Scripts should be loaded via a separate
-        // initialization step at a higher level (e.g., in cardinal-cli or a web frontend).
-        // This keeps file I/O out of the engine core.
-        
-        Self { rules, state: initial, cards, scripting, seed, next_choice_id: 1, next_stack_id: 1 }
+        Self::new(rules, seed)
     }
 
-    pub fn legal_actions(&self, _player: PlayerId) -> Vec<Action> {
-        // Start simple: implement legality later in engine/legality.rs
-        // Return only actions that make sense (PassPriority, PlayCard if allowed, etc).
-        vec![Action::PassPriority]
+    pub fn state(&self) -> &GameState {
+        &self.state
+    }
+
+    pub fn cards(&self) -> &crate::engine::cards::CardRegistry {
+        &self.cards
+    }
+
+    pub fn public_state(&self) -> GameState {
+        self.filtered_state(None)
+    }
+
+    pub fn player_view(&self, player: PlayerId) -> GameState {
+        self.filtered_state(Some(player))
+    }
+
+    pub fn start_game(&mut self, decks: Vec<Vec<crate::ids::CardId>>) -> Result<(), EngineError> {
+        let expected_players = self.rules.players.min_players;
+        if decks.len() != expected_players {
+            return Err(EngineError(format!(
+                "Expected {} decks, received {}",
+                expected_players,
+                decks.len()
+            )));
+        }
+
+        let mut state = GameState::from_ruleset(&self.rules);
+
+        for (player_idx, deck_cards) in decks.into_iter().enumerate() {
+            let deck_zone_id = format!("deck@{}", player_idx);
+            let deck_zone = state.zones.iter_mut()
+                .find(|zone| zone.id.0 == deck_zone_id)
+                .ok_or_else(|| EngineError(format!("Missing deck zone for player {}", player_idx)))?;
+            deck_zone.cards = deck_cards;
+        }
+
+        self.state = crate::engine::init::initialize_game(state, &self.rules, self.seed);
+        Ok(())
+    }
+
+    pub fn legal_actions(&self, player: PlayerId) -> Vec<Action> {
+        if self.state.ended.is_some() {
+            return Vec::new();
+        }
+
+        let mut actions = vec![Action::Concede];
+
+        if self.validate_action(player, &Action::PassPriority).is_ok() {
+            actions.push(Action::PassPriority);
+        }
+
+        if let Some(play_card) = self.rules.actions.iter().find(|action| action.id == "play_card") {
+            for zone_id in self.player_action_zones(player, play_card) {
+                if let Some(zone) = self.state.zones.iter().find(|candidate| candidate.id == zone_id) {
+                    for &card in &zone.cards {
+                        let action = Action::PlayCard { card, from: zone.id.clone() };
+                        if self.validate_action(player, &action).is_ok() {
+                            actions.push(action);
+                        }
+                    }
+                }
+            }
+        }
+
+        actions
     }
 
     /// Generate the next unique stack item ID
@@ -238,5 +296,65 @@ impl GameEngine {
 
     fn validate_action(&self, player: PlayerId, action: &Action) -> Result<(), LegalityError> {
         crate::engine::legality::validate(self, player, action)
+    }
+
+    fn filtered_state(&self, viewer: Option<PlayerId>) -> GameState {
+        let mut filtered = self.state.clone();
+
+        for zone in &mut filtered.zones {
+            if let Some(zone_def) = self.zone_def(zone.id.0) {
+                zone.cards = match zone_def.visibility {
+                    ZoneVisibility::Public => zone.cards.clone(),
+                    ZoneVisibility::Private => {
+                        if viewer.is_some() && zone.owner == viewer {
+                            zone.cards.clone()
+                        } else {
+                            Vec::new()
+                        }
+                    }
+                    ZoneVisibility::TopCardPublic => {
+                        if viewer.is_some() && zone.owner == viewer {
+                            zone.cards.clone()
+                        } else {
+                            zone.cards.first().copied().into_iter().collect()
+                        }
+                    }
+                };
+            }
+        }
+
+        let visible_cards: HashSet<_> = filtered.zones.iter()
+            .flat_map(|zone| zone.cards.iter().copied())
+            .collect();
+        filtered.card_instances.retain(|card_id, _| visible_cards.contains(card_id));
+
+        filtered
+    }
+
+    fn zone_def(&self, zone_id: &str) -> Option<&ZoneDef> {
+        let base_zone = zone_id.split('@').next().unwrap_or(zone_id);
+        self.rules.zones.iter().find(|zone| zone.id == base_zone)
+    }
+
+    fn player_action_zones(
+        &self,
+        player: PlayerId,
+        action: &crate::rules::schema::ActionDef,
+    ) -> Vec<crate::ids::ZoneId> {
+        action.source_zones.as_ref()
+            .into_iter()
+            .flatten()
+            .filter_map(|zone_name| {
+                let zone_def = self.rules.zones.iter().find(|zone| zone.id == *zone_name)?;
+                let zone_id = match zone_def.owner_scope {
+                    crate::rules::schema::ZoneOwnerScope::Player => format!("{}@{}", zone_name, player.0),
+                    crate::rules::schema::ZoneOwnerScope::Shared => zone_name.clone(),
+                };
+
+                self.state.zones.iter()
+                    .find(|zone| zone.id.0 == zone_id)
+                    .map(|zone| zone.id.clone())
+            })
+            .collect()
     }
 }

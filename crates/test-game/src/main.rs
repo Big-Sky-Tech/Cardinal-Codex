@@ -1,103 +1,100 @@
-use cardinal::*;
-use std::io;
+use cardinal::ids::PlayerId;
+use cardinal::{Action, GameRuntime};
 
 fn main() {
-    println!("====================================");
-    println!("Welcome to Cardinal Test Game!");
-    println!("====================================\n");
-
-    // Load game configuration
     let rules_path = "crates/test-game/rules.toml";
-    println!("Loading game rules from: {}", rules_path);
-    
-    let rules = match cardinal::load_game_config(rules_path, None) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("ERROR: Failed to load game config: {:?}", e);
+    let seed = 42;
+
+    println!("====================================");
+    println!("Cardinal Minimal Runtime Test");
+    println!("====================================\n");
+    println!("Loading rules from: {}", rules_path);
+
+    let mut runtime = match GameRuntime::load(rules_path, None, seed) {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            eprintln!("ERROR: Failed to load game config: {:?}", error);
             eprintln!("\nMake sure you're running from the repository root:");
             eprintln!("  cargo run --bin test-game");
             return;
         }
     };
 
-    println!("✓ Rules loaded: {}", rules.game.name);
-    println!("✓ Cards loaded: {}\n", rules.cards.len());
+    let decks = match runtime.build_mirror_decks(5) {
+        Ok(decks) => decks,
+        Err(error) => {
+            eprintln!("ERROR: Failed to build demo decks: {:?}", error);
+            return;
+        }
+    };
 
-    // Create initial game state
-    let initial_state = GameState::from_ruleset(&rules);
-    
-    // Create test decks with some cards
-    let mut state = initial_state.clone();
-    populate_test_decks(&mut state, 3);
-    println!("✓ Test decks populated with 3 cards each\n");
+    if let Err(error) = runtime.start_game(decks) {
+        eprintln!("ERROR: Failed to start game: {:?}", error);
+        return;
+    }
 
-    // Initialize the game with a fixed seed for consistency
-    let seed = 42;
-    let state = cardinal::initialize_game(state, &rules, seed);
-    
-    // Create game engine
-    let engine = GameEngine::new(rules, seed, state);
-    
-    println!("====================================");
-    println!("Game Ready!");
-    println!("====================================\n");
-    
-    // Display game state
-    display_game_state(&engine);
-    
-    println!("\nThis is a minimal test game demonstrating Cardinal engine integration.");
-    println!("The game has been initialized with two players and starting hands.\n");
-    
-    println!("Next steps to make this interactive:");
-    println!("  1. Add a game loop to handle player actions");
-    println!("  2. Implement action handlers (play card, pass turn, etc.)");
-    println!("  3. Add event processing for game events");
-    println!("  4. Create a UI rendering system\n");
-    
-    println!("Press Enter to exit...");
-    let mut input = String::new();
-    io::stdin().read_line(&mut input).ok();
-}
+    let state = runtime.public_state();
+    println!("✓ Game loaded");
+    println!("✓ Players: {}", state.players.len());
+    println!("✓ Turn: {}", state.turn.number);
+    println!("✓ Phase: {}", state.turn.phase.0);
+    println!("✓ Step: {}", state.turn.step.0);
+    println!("✓ Active Player: Player {}", state.turn.active_player.0);
+    println!();
 
-fn populate_test_decks(state: &mut GameState, num_cards: usize) {
-    let num_players = state.players.len() as u8;
-    for player_idx in 0..num_players {
-        let deck_zone_id = format!("deck@{}", player_idx);
+    let player = state.turn.priority_player;
+    let legal_actions = runtime.legal_actions(player);
+    println!("Legal actions for Player {}:", player.0);
+    for (index, action) in legal_actions.iter().enumerate() {
+        println!("  [{}] {}", index + 1, describe_action(action));
+    }
+    println!();
 
-        if let Some(deck) = state.zones.iter_mut().find(|z| z.id.0 == deck_zone_id) {
-            for i in 0..num_cards {
-                let card_id = cardinal::ids::CardId((player_idx as u32 * 100) + i as u32);
-                deck.cards.push(card_id);
+    let chosen_action = legal_actions.into_iter()
+        .find(|action| !matches!(action, Action::Concede))
+        .unwrap_or(Action::Concede);
+
+    println!("Applying action: {}", describe_action(&chosen_action));
+    match runtime.apply_action(player, chosen_action) {
+        Ok(result) => {
+            if result.events.is_empty() {
+                println!("No events emitted.");
+            } else {
+                println!("Events:");
+                for event in result.events {
+                    println!("  - {:?}", event);
+                }
             }
         }
+        Err(error) => {
+            eprintln!("ERROR: Failed to apply action: {:?}", error);
+        }
+    }
+
+    println!("\nPlayer 0 view:");
+    print_player_view(&runtime.player_view(PlayerId(0)));
+}
+
+fn describe_action(action: &Action) -> String {
+    match action {
+        Action::PassPriority => "PassPriority".to_string(),
+        Action::Concede => "Concede".to_string(),
+        Action::PlayCard { card, from } => format!("PlayCard(card={}, from={})", card.0, from.0),
+        Action::ChooseTarget { choice_id, .. } => format!("ChooseTarget(choice_id={})", choice_id),
     }
 }
 
-fn display_game_state(engine: &GameEngine) {
-    println!("Current Game State:");
-    println!("  Turn: {}", engine.state.turn.number);
-    println!("  Phase: {}", engine.state.turn.phase.0);
-    println!("  Step: {}", engine.state.turn.step.0);
-    println!("  Active Player: Player {}", engine.state.turn.active_player.0);
-    println!("  Priority Player: Player {}", engine.state.turn.priority_player.0);
-    println!();
-    
-    for player in &engine.state.players {
-        println!("Player {}:", player.id.0);
-        println!("  Life: {}", player.life);
-        println!("  Mana: {}", player.resources.get("mana").unwrap_or(&0));
-        
-        // Show hand size
-        let hand_zone_id = format!("hand@{}", player.id.0);
-        if let Some(hand) = engine.state.zones.iter().find(|z| z.id.0 == hand_zone_id) {
-            println!("  Hand: {} cards", hand.cards.len());
-        }
-        
-        // Show deck size
-        let deck_zone_id = format!("deck@{}", player.id.0);
-        if let Some(deck) = engine.state.zones.iter().find(|z| z.id.0 == deck_zone_id) {
-            println!("  Deck: {} cards", deck.cards.len());
-        }
-        println!();
+fn print_player_view(state: &cardinal::GameState) {
+    println!("  Turn: {}", state.turn.number);
+    println!("  Phase: {}", state.turn.phase.0);
+    println!("  Step: {}", state.turn.step.0);
+    println!("  Active Player: Player {}", state.turn.active_player.0);
+
+    for player in &state.players {
+        println!("  Player {} life: {}", player.id.0, player.life);
+    }
+
+    for zone in &state.zones {
+        println!("  Zone {} has {} visible cards", zone.id.0, zone.cards.len());
     }
 }

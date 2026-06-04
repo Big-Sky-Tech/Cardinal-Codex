@@ -67,6 +67,86 @@ pub fn validate(engine: &GameEngine, player: PlayerId, action: &Action) -> Resul
                 }
             }
 
+            #[cfg(test)]
+            mod tests {
+                use super::*;
+                use crate::ids::CardId;
+                use crate::model::command::{EffectRef, StackItem};
+
+                fn load_rules() -> crate::rules::schema::Ruleset {
+                    crate::load_game_config("../../rules.toml", None).expect("load rules")
+                }
+
+                fn build_demo_decks(rules: &crate::rules::schema::Ruleset, deck_size: usize) -> Vec<Vec<CardId>> {
+                    let ids: Vec<CardId> = rules.cards.iter()
+                        .filter_map(|card| card.id.parse::<u32>().ok().map(CardId))
+                        .collect();
+                    assert!(!ids.is_empty());
+
+                    (0..rules.players.min_players)
+                        .map(|_| {
+                            (0..deck_size)
+                                .map(|index| ids[index % ids.len()])
+                                .collect()
+                        })
+                        .collect()
+                }
+
+                #[test]
+                fn play_card_is_rejected_in_non_action_phase() {
+                    let rules = load_rules();
+                    let mut engine = GameEngine::new(rules.clone(), 42);
+                    engine.start_game(build_demo_decks(&rules, 10)).expect("start game");
+
+                    let active_player = engine.state.turn.active_player;
+                    let hand_zone = engine.state.zones.iter()
+                        .find(|zone| zone.id.0 == format!("hand@{}", active_player.0))
+                        .expect("hand zone");
+                    let card = hand_zone.cards.first().copied().unwrap_or(CardId(999));
+
+                    let result = validate(
+                        &engine,
+                        active_player,
+                        &Action::PlayCard { card, from: hand_zone.id.clone() },
+                    );
+
+                    assert!(result.is_err());
+                }
+
+                #[test]
+                fn play_card_requires_empty_stack() {
+                    let rules = load_rules();
+                    let mut engine = GameEngine::new(rules.clone(), 42);
+                    engine.start_game(build_demo_decks(&rules, 10)).expect("start game");
+
+                    for _ in 0..engine.state.players.len() {
+                        let player = engine.state.turn.priority_player;
+                        engine.apply_action(player, Action::PassPriority).expect("advance to upkeep");
+                    }
+
+                    let active_player = engine.state.turn.active_player;
+                    let hand_zone = engine.state.zones.iter()
+                        .find(|zone| zone.id.0 == format!("hand@{}", active_player.0))
+                        .expect("hand zone");
+                    let card = hand_zone.cards.first().copied().expect("card in hand");
+
+                    engine.state.stack.push(StackItem {
+                        id: 1,
+                        source: Some(card),
+                        controller: active_player,
+                        effect: EffectRef::Builtin("test"),
+                    });
+
+                    let result = validate(
+                        &engine,
+                        active_player,
+                        &Action::PlayCard { card, from: hand_zone.id.clone() },
+                    );
+
+                    assert!(result.is_err());
+                }
+            }
+
             // Verify the card exists in the source zone
             if !zone.cards.contains(card) {
                 return Err(CardinalError("Card is not in the specified source zone".to_string()));

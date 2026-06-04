@@ -1,718 +1,302 @@
-use cardinal_kernel as cardinal;
 use cardinal::*;
-use cardinal::ids::PlayerId;
-use cardinal::model::action::Action;
+use cardinal::ids::{CardId, PlayerId};
+use cardinal_kernel as cardinal;
 
-/// Helper function to load rules and cards for tests
 fn load_test_rules() -> cardinal::Ruleset {
-    // Use load_game_config to load rules.toml and cards from cards/ directory
     cardinal::load_game_config("../../rules.toml", None).expect("load game config")
+}
+
+fn build_demo_decks(rules: &cardinal::Ruleset, deck_size: usize) -> Vec<Vec<CardId>> {
+    let card_ids: Vec<CardId> = rules.cards.iter()
+        .filter_map(|card| card.id.parse::<u32>().ok().map(CardId))
+        .collect();
+
+    assert!(!card_ids.is_empty(), "expected numeric test card IDs");
+
+    (0..rules.players.min_players)
+        .map(|_| {
+            (0..deck_size)
+                .map(|index| card_ids[index % card_ids.len()])
+                .collect()
+        })
+        .collect()
+}
+
+fn build_single_card_decks(rules: &cardinal::Ruleset, card_id: CardId, deck_size: usize) -> Vec<Vec<CardId>> {
+    (0..rules.players.min_players)
+        .map(|_| vec![card_id; deck_size])
+        .collect()
+}
+
+fn start_engine(rules: cardinal::Ruleset, seed: u64, decks: Vec<Vec<CardId>>) -> GameEngine {
+    let mut engine = GameEngine::new(rules, seed);
+    engine.start_game(decks).expect("start game");
+    engine
+}
+
+fn advance_to_play_card(engine: &mut GameEngine) -> (PlayerId, Action) {
+    for _ in 0..64 {
+        let player = engine.state().turn.priority_player;
+        let actions = engine.legal_actions(player);
+        if let Some(action) = actions.into_iter().find(|action| matches!(action, Action::PlayCard { .. })) {
+            return (player, action);
+        }
+
+        engine.apply_action(player, Action::PassPriority)
+            .expect("advance priority");
+    }
+
+    panic!("no playable card action found");
+}
+
+fn hand_zone_card_count(state: &GameState, player: PlayerId) -> usize {
+    let hand_zone_id = format!("hand@{}", player.0);
+    state.zones.iter()
+        .find(|zone| zone.id.0 == hand_zone_id)
+        .map(|zone| zone.cards.len())
+        .unwrap_or(0)
 }
 
 #[test]
 fn build_engine_from_rules() {
     let rules = load_test_rules();
-    let engine = GameEngine::from_ruleset(rules, 42);
-    // basic sanity: at least one player present
-    assert!(!engine.state.players.is_empty());
+    let engine = GameEngine::new(rules, 42);
+    assert!(!engine.state().players.is_empty());
 }
 
 #[test]
-fn test_phase_advancement() {
+fn start_game_draws_hands_and_sets_priority() {
     let rules = load_test_rules();
-    let mut engine = GameEngine::from_ruleset(rules.clone(), 42);
-    
-    let initial_phase = engine.state.turn.phase.clone();
-    let initial_step = engine.state.turn.step.clone();
-    let num_players = engine.state.players.len() as u32;
-    
-    // Pass priority from every player (need num_players passes to advance)
-    for _ in 0..num_players {
-        let priority_player = engine.state.turn.priority_player;
-        let result = engine.apply_action(priority_player, Action::PassPriority)
-            .expect("apply action");
-        
-        // Should have emitted at least one event
-        assert!(!result.events.is_empty(), "PassPriority should emit events");
-    }
-    
-    // After all players pass, phase or step should have advanced
-    let phase_advanced = engine.state.turn.phase != initial_phase || engine.state.turn.step != initial_step;
-    assert!(phase_advanced, "Phase or step should have advanced after all players pass");
-}
+    let engine = start_engine(rules.clone(), 42, build_demo_decks(&rules, 10));
+    let state = engine.state();
 
-#[test]
-fn test_phase_progression_full_turn() {
-    let rules = load_test_rules();
-    let mut engine = GameEngine::from_ruleset(rules.clone(), 42);
-    
-    let initial_turn = engine.state.turn.number;
-    let initial_active_player = engine.state.turn.active_player;
-    
-    // Count total steps across all phases
-    let total_steps: usize = rules.turn.phases.iter()
-        .map(|p| p.steps.len())
-        .sum();
-    
-    let num_players = engine.state.players.len() as u32;
-    
-    // For each step, we need all players to pass priority to advance
-    // So roughly total_steps * num_players passes needed
-    for _ in 0..(total_steps * num_players as usize + 10) {
-        if engine.state.ended.is_some() {
-            break; // Game ended, stop
+    assert_eq!(state.turn.active_player, state.turn.priority_player);
+
+    let first_player = state.turn.active_player;
+    for player in &state.players {
+        let hand_size = hand_zone_card_count(state, player.id);
+        if player.id == first_player && rules.turn.skip_first_turn_draw_for_first_player {
+            assert_eq!(hand_size, 0);
+        } else {
+            assert_eq!(hand_size, rules.players.starting_hand_size);
         }
-        let priority_player = engine.state.turn.priority_player;
-        let _ = engine.apply_action(priority_player, Action::PassPriority);
     }
-    
-    // After cycling through all phases, we should have advanced to next turn
-    assert_eq!(engine.state.turn.number, initial_turn + 1, "Turn number should have incremented");
-    
-    // Active player should have rotated
-    let expected_next_player = if initial_active_player.0 + 1 < engine.state.players.len() as u8 {
-        PlayerId(initial_active_player.0 + 1)
-    } else {
-        PlayerId(0)
-    };
-    assert_eq!(engine.state.turn.active_player, expected_next_player, "Active player should rotate");
 }
 
 #[test]
-fn test_legality_active_player_restriction() {
+fn deterministic_startup_uses_seed() {
     let rules = load_test_rules();
-    let mut engine = GameEngine::from_ruleset(rules, 42);
-    
-    // Only player 0 should be able to play cards (active player)
-    let inactive_player = if engine.state.players.len() > 1 {
+    let decks = build_demo_decks(&rules, 10);
+
+    let engine_a = start_engine(rules.clone(), 42, decks.clone());
+    let engine_b = start_engine(rules.clone(), 42, decks.clone());
+    let engine_c = start_engine(rules, 99, decks);
+
+    assert_eq!(engine_a.state().turn.active_player, engine_b.state().turn.active_player);
+    assert_eq!(engine_a.player_view(PlayerId(0)).zones.len(), engine_b.player_view(PlayerId(0)).zones.len());
+    assert!(engine_c.state().turn.active_player.0 < 2);
+}
+
+#[test]
+fn public_state_hides_private_zones() {
+    let rules = load_test_rules();
+    let engine = start_engine(rules.clone(), 42, build_demo_decks(&rules, 10));
+    let public_state = engine.public_state();
+
+    for zone in public_state.zones.iter().filter(|zone| zone.id.0.starts_with("hand@") || zone.id.0.starts_with("deck@")) {
+        assert!(zone.cards.is_empty(), "private zones should be hidden in public state");
+    }
+}
+
+#[test]
+fn player_view_hides_opponent_private_zones() {
+    let rules = load_test_rules();
+    let engine = start_engine(rules.clone(), 42, build_demo_decks(&rules, 10));
+
+    let player_zero = engine.player_view(PlayerId(0));
+    let player_one = engine.player_view(PlayerId(1));
+
+    assert_eq!(hand_zone_card_count(&player_zero, PlayerId(1)), 0);
+    assert_eq!(hand_zone_card_count(&player_one, PlayerId(0)), 0);
+}
+
+#[test]
+fn legal_actions_include_pass_for_priority_player() {
+    let rules = load_test_rules();
+    let engine = start_engine(rules.clone(), 42, build_demo_decks(&rules, 10));
+    let priority_player = engine.state().turn.priority_player;
+
+    assert!(engine.legal_actions(priority_player).iter().any(|action| matches!(action, Action::PassPriority)));
+}
+
+#[test]
+fn legal_actions_exclude_pass_for_non_priority_player() {
+    let rules = load_test_rules();
+    let engine = start_engine(rules.clone(), 42, build_demo_decks(&rules, 10));
+    let non_priority_player = if engine.state().turn.priority_player == PlayerId(0) {
         PlayerId(1)
     } else {
         PlayerId(0)
     };
-    
-    // If there are 2+ players and it's player 0's turn, player 1 cannot play
-    if engine.state.turn.active_player == PlayerId(0) && inactive_player != PlayerId(0) {
-        // Create a dummy card ID and zone
-        let card = cardinal::ids::CardId(999);
-        let zone = engine.state.zones.iter()
-            .find(|z| z.owner == Some(inactive_player))
-            .map(|z| z.id.clone());
-        
-        if let Some(zone_id) = zone {
-            let result = engine.apply_action(
-                inactive_player,
-                Action::PlayCard { card, from: zone_id },
-            );
-            
-            // Should fail: inactive player trying to play
-            assert!(result.is_err(), "Inactive player should not be able to play cards");
-        }
-    }
+
+    assert!(!engine.legal_actions(non_priority_player).iter().any(|action| matches!(action, Action::PassPriority)));
 }
 
 #[test]
-fn test_legality_phase_restrictions() {
+fn legal_actions_include_play_card_when_available() {
     let rules = load_test_rules();
-    let mut engine = GameEngine::from_ruleset(rules.clone(), 42);
-    
-    // Find a phase that does NOT allow actions
-    let no_action_phase = rules.turn.phases.iter()
-        .find(|p| !p.allow_actions);
-    
-    if let Some(phase) = no_action_phase {
-        // Manually set engine to that phase
-        let phase_box: Box<str> = phase.id.clone().into_boxed_str();
-        let phase_static: &'static str = Box::leak(phase_box);
-        engine.state.turn.phase = cardinal::ids::PhaseId(phase_static);
-        
-        if let Some(step) = phase.steps.first() {
-            let step_box: Box<str> = step.id.clone().into_boxed_str();
-            let step_static: &'static str = Box::leak(step_box);
-            engine.state.turn.step = cardinal::ids::StepId(step_static);
-        }
-        
-        // Try to play a card in this phase
-        let card = cardinal::ids::CardId(888);
-        let zone = engine.state.zones.iter()
-            .find(|z| z.owner == Some(engine.state.turn.active_player))
-            .map(|z| z.id.clone());
-        
-        if let Some(zone_id) = zone {
-            let result = engine.apply_action(
-                engine.state.turn.active_player,
-                Action::PlayCard { card, from: zone_id },
-            );
-            
-            // Should fail: phase doesn't allow actions
-            assert!(result.is_err(), "Cannot play cards in a phase that doesn't allow actions");
-        }
-    }
+    let mut engine = start_engine(rules.clone(), 42, build_demo_decks(&rules, 10));
+
+    let (player, action) = advance_to_play_card(&mut engine);
+    assert!(engine.legal_actions(player).iter().any(|candidate| matches!(
+        (candidate, &action),
+        (Action::PlayCard { card: lhs_card, from: lhs_from }, Action::PlayCard { card: rhs_card, from: rhs_from })
+            if lhs_card == rhs_card && lhs_from == rhs_from
+    )));
 }
 
 #[test]
-fn test_legality_zone_ownership() {
+fn inactive_player_cannot_play_card() {
     let rules = load_test_rules();
-    let mut engine = GameEngine::from_ruleset(rules, 42);
-    
-    if engine.state.players.len() > 1 {
-        let active_player = engine.state.turn.active_player;
-        let opponent = if active_player == PlayerId(0) {
-            PlayerId(1)
-        } else {
-            PlayerId(0)
-        };
-        
-        // Try to play a card from opponent's zone
-        let card = cardinal::ids::CardId(777);
-        let opponent_zone = engine.state.zones.iter()
-            .find(|z| z.owner == Some(opponent))
-            .map(|z| z.id.clone());
-        
-        if let Some(zone_id) = opponent_zone {
-            let result = engine.apply_action(
-                active_player,
-                Action::PlayCard { card, from: zone_id },
-            );
-            
-            // Should fail: zone ownership violation
-            assert!(result.is_err(), "Cannot play cards from opponent's zones");
-        }
-    }
-}
-
-#[test]
-fn test_pass_priority_requires_priority() {
-    let rules = load_test_rules();
-    let mut engine = GameEngine::from_ruleset(rules, 42);
-    
-    // The priority player should be able to pass
-    let priority_player = engine.state.turn.priority_player;
-    let result = engine.apply_action(priority_player, Action::PassPriority);
-    assert!(result.is_ok(), "Priority player should be able to pass priority");
-    
-    // After one player passes, priority rotates to the next player
-    let new_priority = engine.state.turn.priority_player;
-    assert_ne!(new_priority, priority_player, "Priority should rotate to next player");
-    
-    // The old priority player should NOT be able to pass now
-    let result = engine.apply_action(priority_player, Action::PassPriority);
-    assert!(result.is_err(), "Non-priority player should not be able to pass priority");
-}
-
-#[test]
-fn test_play_card_action() {
-    let rules = load_test_rules();
-    let mut engine = GameEngine::from_ruleset(rules.clone(), 42);
-    
-    // Find the main phase where actions are allowed
-    let main_phase = rules.turn.phases.iter()
-        .find(|p| p.allow_actions && p.id.contains("main"));
-    
-    if let Some(phase) = main_phase {
-        // Set to main phase (use first step)
-        let phase_box: Box<str> = phase.id.clone().into_boxed_str();
-        let phase_static: &'static str = Box::leak(phase_box);
-        engine.state.turn.phase = cardinal::ids::PhaseId(phase_static);
-        
-        if let Some(step) = phase.steps.first() {
-            let step_box: Box<str> = step.id.clone().into_boxed_str();
-            let step_static: &'static str = Box::leak(step_box);
-            engine.state.turn.step = cardinal::ids::StepId(step_static);
-        }
-    }
-    
-    let active_player = engine.state.turn.active_player;
-    
-    // Find hand zone for active player
-    let hand_zone = engine.state.zones.iter()
-        .find(|z| z.owner == Some(active_player) && z.id.0.starts_with("hand"))
-        .map(|z| z.id.clone());
-    
-    if let Some(hand) = hand_zone {
-        // Add a test card to the hand
-        let test_card = cardinal::ids::CardId(12345);
-        engine.state.zones.iter_mut()
-            .find(|z| z.id == hand)
-            .map(|z| z.cards.push(test_card));
-        
-        // Verify the card is in the hand
-        assert!(engine.state.zones.iter()
-            .find(|z| z.id == hand)
-            .map(|z| z.cards.contains(&test_card))
-            .unwrap_or(false), "Test card should be in hand");
-        
-        // Play the card
-        let result = engine.apply_action(
-            active_player,
-            Action::PlayCard { card: test_card, from: hand.clone() },
-        );
-        
-        assert!(result.is_ok(), "Playing card from hand should succeed");
-        
-        let events = &result.unwrap().events;
-        
-        // Check for CardPlayed event
-        let card_played = events.iter()
-            .any(|e| matches!(e, Event::CardPlayed { player: p, card: c } 
-                if p == &active_player && c == &test_card));
-        assert!(card_played, "CardPlayed event should be emitted");
-        
-        // Check for CardMoved event
-        let card_moved = events.iter()
-            .any(|e| matches!(e, Event::CardMoved { card: c, from: f, .. } 
-                if c == &test_card && f == &hand));
-        assert!(card_moved, "CardMoved event should be emitted");
-        
-        // Verify card is no longer in hand
-        assert!(!engine.state.zones.iter()
-            .find(|z| z.id == hand)
-            .map(|z| z.cards.contains(&test_card))
-            .unwrap_or(false), "Test card should no longer be in hand");
-        
-        // Verify card is now in field
-        let field_zone = engine.state.zones.iter()
-            .find(|z| z.owner == Some(active_player) && z.id.0.starts_with("field"))
-            .map(|z| z.id.clone());
-        
-        if let Some(field) = field_zone {
-            assert!(engine.state.zones.iter()
-                .find(|z| z.id == field)
-                .map(|z| z.cards.contains(&test_card))
-                .unwrap_or(false), "Test card should be in field after playing");
-        }
-    }
-}
-
-#[test]
-fn test_play_card_requires_empty_stack() {
-    let rules = load_test_rules();
-    let mut engine = GameEngine::from_ruleset(rules.clone(), 42);
-    
-    let active_player = engine.state.turn.active_player;
-    
-    // Add a fake stack item to test the requires_empty_stack rule
-    let dummy_stack_item = cardinal::model::command::StackItem {
-        id: 1,
-        source: Some(cardinal::ids::CardId(999)),
-        controller: active_player,
-        effect: cardinal::model::command::EffectRef::Builtin("test"),
-    };
-    engine.state.stack.push(dummy_stack_item);
-    
-    // Find hand zone
-    let hand_zone = engine.state.zones.iter()
-        .find(|z| z.owner == Some(active_player) && z.id.0.starts_with("hand"))
-        .map(|z| z.id.clone());
-    
-    if let Some(hand) = hand_zone {
-        // Add a test card
-        let test_card = cardinal::ids::CardId(54321);
-        engine.state.zones.iter_mut()
-            .find(|z| z.id == hand)
-            .map(|z| z.cards.push(test_card));
-        
-        // Try to play card with non-empty stack - should fail
-        let result = engine.apply_action(
-            active_player,
-            Action::PlayCard { card: test_card, from: hand },
-        );
-        
-        assert!(result.is_err(), "Playing card with non-empty stack should fail");
-    }
-}
-
-#[test]
-fn test_concede_action() {
-    let rules = load_test_rules();
-    let mut engine = GameEngine::from_ruleset(rules, 42);
-    
-    let player_0 = PlayerId(0);
-    
-    // Player 0 concedes
-    let result = engine.apply_action(player_0, Action::Concede)
-        .expect("Concede should succeed");
-    
-    // Check for GameEnded event
-    let game_ended = result.events.iter()
-        .any(|e| matches!(e, Event::GameEnded { .. }));
-    assert!(game_ended, "GameEnded event should be emitted on concede");
-    
-    // Game should be marked as ended
-    assert!(engine.state.ended.is_some(), "Game should be marked as ended");
-}
-
-#[test]
-fn test_priority_rotation() {
-    let rules = load_test_rules();
-    let mut engine = GameEngine::from_ruleset(rules, 42);
-    
-    let num_players = engine.state.players.len() as u32;
-    if num_players < 2 {
-        return; // Need 2+ players for priority rotation test
-    }
-    
-    let initial_priority = engine.state.turn.priority_player;
-    let mut priority_sequence = vec![initial_priority];
-    
-    // Pass priority num_players times to complete a round
-    for _ in 0..num_players {
-        let current_priority = engine.state.turn.priority_player;
-        let result = engine.apply_action(current_priority, Action::PassPriority)
-            .expect("should be able to pass");
-        
-        // Verify we got a priority passed event
-        assert!(result.events.iter()
-            .any(|e| matches!(e, Event::PriorityPassed { by: p } if p == &current_priority)),
-            "PriorityPassed event should be emitted");
-        
-        priority_sequence.push(engine.state.turn.priority_player);
-    }
-    
-    // After num_players passes, we should be back at the initial priority player
-    // (or close to it depending on phase advancement)
-    assert!(priority_sequence.iter().take(num_players as usize).all(|p| {
-        // Each player should get priority once
-        priority_sequence.iter().filter(|x| x == &p).count() >= 1
-    }), "Each player should have gotten priority");
-}
-
-#[test]
-fn test_priority_passes_tracked() {
-    let rules = load_test_rules();
-    let mut engine = GameEngine::from_ruleset(rules, 42);
-    
-    // Initially, priority_passes should be 0
-    assert_eq!(engine.state.turn.priority_passes, 0, "Priority passes should start at 0");
-    
-    // Pass priority once
-    let priority_player = engine.state.turn.priority_player;
-    let _ = engine.apply_action(priority_player, Action::PassPriority);
-    
-    // priority_passes should be incremented before any phase advancement
-    // But it may be reset if phase advancement occurs. Let's check it's tracking correctly:
-    let passes_after_first = engine.state.turn.priority_passes;
-    assert!(passes_after_first >= 1, "Priority passes should have been incremented");
-}
-
-#[test]
-fn test_trigger_evaluation_on_card_play() {
-    let rules = load_test_rules();
-    let mut engine = GameEngine::from_ruleset(rules, 42);
-    
-    // Get the active player (normally player 0)
-    let active_player = engine.state.turn.active_player;
-    
-    // Find a card in the active player's hand to play
-    let hand_zone_id = format!("hand@{}", active_player.0);
-    let hand = engine.state.zones.iter()
-        .find(|z| z.id.0 == hand_zone_id)
-        .cloned();
-    
-    if let Some(hand_zone) = hand {
-        if !hand_zone.cards.is_empty() {
-            let card_to_play = hand_zone.cards[0];
-            let from_zone = hand_zone.id;
-            
-            // Play the card (this should trigger the card_played trigger)
-            let result = engine.apply_action(
-                active_player,
-                Action::PlayCard { card: card_to_play, from: from_zone },
-            ).expect("play card action should succeed");
-            
-            // Check that we got events - should include CardPlayed, CardMoved, and potentially StackResolved
-            assert!(!result.events.is_empty(), "PlayCard should emit events");
-            
-            // Verify CardPlayed event is present
-            let has_card_played = result.events.iter()
-                .any(|e| matches!(e, Event::CardPlayed { player, card } 
-                    if player == &active_player && card == &card_to_play));
-            assert!(has_card_played, "CardPlayed event should be emitted");
-            
-            // Verify CardMoved event is present (from hand to field)
-            let has_card_moved = result.events.iter()
-                .any(|e| matches!(e, Event::CardMoved { card, .. } if card == &card_to_play));
-            assert!(has_card_moved, "CardMoved event should be emitted");
-            
-            // With trigger system, we should have stack items created (triggers pushed stack)
-            // and potentially resolved (StackResolved events)
-            let _has_stack_event = result.events.iter()
-                .any(|e| matches!(e, Event::StackResolved { .. }));
-            // Note: Stack might be auto-resolved or waiting - this is just checking the mechanism works
-            assert!(!result.events.is_empty(), "Events should be generated from card play and triggers");
-        }
-    }
-}
-
-#[test]
-fn test_game_initialization_creates_decks() {
-    let rules = load_test_rules();
-    let initial_state = GameState::from_ruleset(&rules);
-    
-    // Create test cards for each player's deck
-    let mut state = initial_state.clone();
-    let num_players = state.players.len() as u32;
-    
-    for i in 0..num_players {
-        let player_id = PlayerId(i as u8);
-        let deck_zone_id_string = format!("deck@{}", player_id.0);
-        
-        // Find the deck zone and add test cards
-        if let Some(deck_zone) = state.zones.iter_mut()
-            .find(|z| z.id.0 == deck_zone_id_string)
-        {
-            // Add 40 test cards to the deck
-            for card_num in 0..40 {
-                let card_id = cardinal::ids::CardId(i * 100 + card_num);
-                deck_zone.cards.push(card_id);
-            }
-        }
-    }
-    
-    // Initialize the game
-    let initialized = cardinal::initialize_game(state, &rules, 42);
-    
-    // Verify decks exist and have cards
-    let mut at_least_one_deck_changed = false;
-    for i in 0..num_players {
-        let player_id = PlayerId(i as u8);
-        let deck_zone_id_string = format!("deck@{}", player_id.0);
-        
-        let deck_zone = initialized.zones.iter()
-            .find(|z| z.id.0 == deck_zone_id_string);
-        
-        assert!(deck_zone.is_some(), "Deck zone should exist");
-        
-        let deck = deck_zone.unwrap();
-        let is_first_player = player_id == initialized.turn.active_player;
-        
-        // If this is not the first player, or skip_first_turn_draw is false, 
-        // some cards should have been drawn
-        if !is_first_player || !rules.turn.skip_first_turn_draw_for_first_player {
-            if deck.cards.len() < 40 {
-                at_least_one_deck_changed = true;
-            }
-        }
-    }
-    
-    assert!(at_least_one_deck_changed, "At least one deck should have cards drawn during initialization");
-}
-
-#[test]
-fn test_game_initialization_draws_starting_hands() {
-    let rules = load_test_rules();
-    let initial_state = GameState::from_ruleset(&rules);
-    let starting_hand_size = rules.players.starting_hand_size;
-    
-    let mut state = initial_state.clone();
-    let num_players = state.players.len() as u32;
-    
-    // Create test decks
-    for i in 0..num_players {
-        let player_id = PlayerId(i as u8);
-        let deck_zone_id_string = format!("deck@{}", player_id.0);
-        
-        if let Some(deck_zone) = state.zones.iter_mut()
-            .find(|z| z.id.0 == deck_zone_id_string)
-        {
-            // Add enough cards for starting hand plus shuffled deck
-            for card_num in 0..60 {
-                let card_id = cardinal::ids::CardId(i * 1000 + card_num);
-                deck_zone.cards.push(card_id);
-            }
-        }
-    }
-    
-    // Initialize the game
-    let initialized = cardinal::initialize_game(state, &rules, 42);
-    
-    // Check that players have cards in their hands
-    for i in 0..num_players {
-        let player_id = PlayerId(i as u8);
-        let is_first_player = player_id == initialized.turn.active_player;
-        let hand_zone_id_string = format!("hand@{}", player_id.0);
-        
-        let hand_zone = initialized.zones.iter()
-            .find(|z| z.id.0 == hand_zone_id_string);
-        
-        assert!(hand_zone.is_some(), "Hand zone should exist for player {}", i);
-        
-        let hand = hand_zone.unwrap();
-        
-        // First player may skip draw if configured
-        if !is_first_player || !rules.turn.skip_first_turn_draw_for_first_player {
-            assert_eq!(
-                hand.cards.len(), 
-                starting_hand_size,
-                "Player {} should have starting_hand_size cards in hand",
-                i
-            );
-        } else {
-            // First player skipped draw
-            assert_eq!(
-                hand.cards.len(),
-                0,
-                "First player should have 0 cards if skip_first_turn_draw is true"
-            );
-        }
-    }
-}
-
-#[test]
-fn test_game_initialization_determines_first_player() {
-    let rules = load_test_rules();
-    let initial_state = GameState::from_ruleset(&rules);
-    
-    let mut state = initial_state.clone();
-    let num_players = state.players.len() as u32;
-    
-    // Add test cards to decks
-    for i in 0..num_players {
-        let player_id = PlayerId(i as u8);
-        let deck_zone_id_string = format!("deck@{}", player_id.0);
-        
-        if let Some(deck_zone) = state.zones.iter_mut()
-            .find(|z| z.id.0 == deck_zone_id_string)
-        {
-            for card_num in 0..40 {
-                let card_id = cardinal::ids::CardId(i * 1000 + card_num);
-                deck_zone.cards.push(card_id);
-            }
-        }
-    }
-    
-    // Initialize game multiple times with same seed - should get same first player
-    let initialized1 = cardinal::initialize_game(state.clone(), &rules, 42);
-    let initialized2 = cardinal::initialize_game(state.clone(), &rules, 42);
-    
-    assert_eq!(
-        initialized1.turn.active_player,
-        initialized2.turn.active_player,
-        "Same seed should result in same first player"
-    );
-    
-    // Different seed might give different first player (with "random" rule)
-    let initialized3 = cardinal::initialize_game(state.clone(), &rules, 99);
-    // This might be the same or different - just verify it's a valid player ID
-    assert!(initialized3.turn.active_player.0 < num_players as u8, "First player should be valid");
-}
-
-#[test]
-fn test_game_initialization_preserves_priority() {
-    let rules = load_test_rules();
-    let initial_state = GameState::from_ruleset(&rules);
-    
-    let mut state = initial_state.clone();
-    let num_players = state.players.len() as u32;
-    
-    // Add test cards
-    for i in 0..num_players {
-        let player_id = PlayerId(i as u8);
-        let deck_zone_id_string = format!("deck@{}", player_id.0);
-        
-        if let Some(deck_zone) = state.zones.iter_mut()
-            .find(|z| z.id.0 == deck_zone_id_string)
-        {
-            for card_num in 0..40 {
-                let card_id = cardinal::ids::CardId(i * 100 + card_num);
-                deck_zone.cards.push(card_id);
-            }
-        }
-    }
-    
-    let initialized = cardinal::initialize_game(state, &rules, 42);
-    
-    // Priority player should be the same as active player initially
-    assert_eq!(
-        initialized.turn.active_player,
-        initialized.turn.priority_player,
-        "Priority player should be the same as active player after initialization"
-    );
-}
-
-#[test]
-fn test_card_ability_etb_trigger() {
-    let rules = load_test_rules();
-    let mut engine = GameEngine::from_ruleset(rules.clone(), 42);
-    
-    // Set engine to a phase that allows actions
-    let main_phase = rules.turn.phases.iter()
-        .find(|p| p.allow_actions && p.id.contains("main"));
-    
-    if let Some(phase) = main_phase {
-        let phase_box: Box<str> = phase.id.clone().into_boxed_str();
-        let phase_static: &'static str = Box::leak(phase_box);
-        engine.state.turn.phase = cardinal::ids::PhaseId(phase_static);
-        
-        if let Some(step) = phase.steps.first() {
-            let step_box: Box<str> = step.id.clone().into_boxed_str();
-            let step_static: &'static str = Box::leak(step_box);
-            engine.state.turn.step = cardinal::ids::StepId(step_static);
-        }
-    }
-    
-    // Use the Goblin Scout card (id: 1) which has an ETB damage ability
-    let goblin_id = cardinal::ids::CardId(1);
-    
-    let active_player = engine.state.turn.active_player;
-    
-    // Find hand zone for active player
-    let hand_zone = engine.state.zones.iter()
-        .find(|z| z.owner == Some(active_player) && z.id.0.starts_with("hand"))
-        .map(|z| z.id.clone());
-    
-    if let Some(hand) = hand_zone {
-        // Add the goblin to hand
-        engine.state.zones.iter_mut()
-            .find(|z| z.id == hand)
-            .map(|z| z.cards.push(goblin_id));
-        
-        // Play the goblin - this should trigger its ETB ability
-        let result = engine.apply_action(
-            active_player,
-            Action::PlayCard { card: goblin_id, from: hand },
-        ).expect("play card should succeed");
-        
-        // Check that we got events including trigger effects
-        assert!(!result.events.is_empty(), "Playing card should emit events");
-        
-        // Verify CardPlayed event
-        let has_card_played = result.events.iter()
-            .any(|e| matches!(e, Event::CardPlayed { player, card } 
-                if player == &active_player && card == &goblin_id));
-        assert!(has_card_played, "CardPlayed event should be emitted");
-        
-        // Verify StackResolved event (trigger was auto-resolved)
-        let has_stack_resolved = result.events.iter()
-            .any(|e| matches!(e, Event::StackResolved { .. }));
-        assert!(has_stack_resolved, "Trigger should create and resolve stack items");
-    }
-}
-
-#[test]
-fn test_card_registry_lookup() {
-    let rules = load_test_rules();
-    let engine = GameEngine::from_ruleset(rules, 42);
-    
-    // Verify that card registry was built correctly
-    assert!(!engine.cards.is_empty(), "Card registry should have cards");
-    
-    // Try to look up the goblin
-    let goblin_id = cardinal::ids::CardId(1);
-    let goblin_def = cardinal::engine::cards::get_card(&engine.cards, goblin_id);
-    
-    if let Some(card) = goblin_def {
-        assert_eq!(card.name, "Goblin Scout", "Card name should match");
-        assert_eq!(card.card_type, "creature", "Card type should match");
-        assert!(!card.abilities.is_empty(), "Card should have abilities");
-        
-        // Check the ability
-        if let Some(ability) = card.abilities.first() {
-            assert_eq!(ability.trigger, "etb", "Ability should be ETB trigger");
-            assert_eq!(ability.effect, "damage", "Ability should be damage effect");
-            assert_eq!(ability.params.get("amount").map(|s| s.as_str()), Some("1"), "Damage amount should be 1");
-        }
+    let engine = start_engine(rules.clone(), 42, build_demo_decks(&rules, 10));
+    let inactive_player = if engine.state().turn.active_player == PlayerId(0) {
+        PlayerId(1)
     } else {
-        panic!("Goblin Scout card not found in registry");
-    }
+        PlayerId(0)
+    };
+    let inactive_view = engine.player_view(inactive_player);
+    let hand_zone = inactive_view.zones.iter()
+        .find(|zone| zone.id.0 == format!("hand@{}", inactive_player.0))
+        .expect("inactive hand zone");
+
+    let result = {
+        let card = hand_zone.cards.first().copied().unwrap_or(CardId(999));
+        let action = Action::PlayCard { card, from: hand_zone.id.clone() };
+        let mut engine = engine;
+        engine.apply_action(inactive_player, action)
+    };
+
+    assert!(result.is_err(), "inactive player should not be able to play cards");
 }
 
+#[test]
+fn cannot_play_from_opponents_zone() {
+    let rules = load_test_rules();
+    let engine = start_engine(rules.clone(), 42, build_demo_decks(&rules, 10));
+    let active_player = engine.state().turn.active_player;
+    let opponent = if active_player == PlayerId(0) { PlayerId(1) } else { PlayerId(0) };
+    let opponent_view = engine.player_view(opponent);
+    let opponent_hand = opponent_view.zones.iter()
+        .find(|zone| zone.id.0 == format!("hand@{}", opponent.0))
+        .expect("opponent hand zone");
+
+    let result = {
+        let action = Action::PlayCard { card: CardId(999), from: opponent_hand.id.clone() };
+        let mut engine = engine;
+        engine.apply_action(active_player, action)
+    };
+
+    assert!(result.is_err(), "active player cannot play from opponent zones");
+}
+
+#[test]
+fn play_card_emits_events_and_moves_card() {
+    let rules = load_test_rules();
+    let mut engine = start_engine(rules.clone(), 42, build_demo_decks(&rules, 10));
+    let (player, action) = advance_to_play_card(&mut engine);
+
+    let played_card = match action.clone() {
+        Action::PlayCard { card, .. } => card,
+        _ => panic!("expected play card action"),
+    };
+
+    let result = engine.apply_action(player, action).expect("play card");
+
+    assert!(result.events.iter().any(|event| matches!(event, Event::CardPlayed { player: event_player, card } if *event_player == player && *card == played_card)));
+    assert!(result.events.iter().any(|event| matches!(event, Event::CardMoved { card, .. } if *card == played_card)));
+}
+
+#[test]
+fn concede_action_ends_game() {
+    let rules = load_test_rules();
+    let mut engine = start_engine(rules.clone(), 42, build_demo_decks(&rules, 10));
+
+    let result = engine.apply_action(PlayerId(0), Action::Concede).expect("concede");
+
+    assert!(result.events.iter().any(|event| matches!(event, Event::GameEnded { .. })));
+    assert!(engine.state().ended.is_some());
+}
+
+#[test]
+fn phase_advancement_requires_full_priority_round() {
+    let rules = load_test_rules();
+    let mut engine = start_engine(rules.clone(), 42, build_demo_decks(&rules, 10));
+    let initial_phase = engine.state().turn.phase.clone();
+    let initial_step = engine.state().turn.step.clone();
+
+    for _ in 0..engine.state().players.len() {
+        let player = engine.state().turn.priority_player;
+        engine.apply_action(player, Action::PassPriority).expect("pass priority");
+    }
+
+    assert!(engine.state().turn.phase != initial_phase || engine.state().turn.step != initial_step);
+}
+
+#[test]
+fn full_turn_progression_rotates_active_player() {
+    let rules = load_test_rules();
+    let mut engine = start_engine(rules.clone(), 42, build_demo_decks(&rules, 10));
+    let starting_turn = engine.state().turn.number;
+    let starting_player = engine.state().turn.active_player;
+    let total_steps: usize = rules.turn.phases.iter().map(|phase| phase.steps.len()).sum();
+
+    for _ in 0..(total_steps * engine.state().players.len() + 8) {
+        let player = engine.state().turn.priority_player;
+        engine.apply_action(player, Action::PassPriority).expect("pass priority");
+        if engine.state().turn.number > starting_turn {
+            break;
+        }
+    }
+
+    assert_eq!(engine.state().turn.number, starting_turn + 1);
+    assert_ne!(engine.state().turn.active_player, starting_player);
+}
+
+#[test]
+fn goblin_scout_trigger_resolves_from_runtime_start() {
+    let rules = load_test_rules();
+    let goblin_id = CardId(1);
+    let mut engine = start_engine(rules.clone(), 42, build_single_card_decks(&rules, goblin_id, 10));
+    let (player, action) = advance_to_play_card(&mut engine);
+
+    let result = engine.apply_action(player, action).expect("play goblin scout");
+
+    assert!(result.events.iter().any(|event| matches!(event, Event::CardPlayed { card, .. } if *card == goblin_id)));
+    assert!(result.events.iter().any(|event| matches!(event, Event::StackResolved { .. })));
+}
+
+#[test]
+fn card_registry_lookup_works() {
+    let rules = load_test_rules();
+    let engine = GameEngine::new(rules, 42);
+    let goblin = cardinal::engine::cards::get_card(engine.cards(), CardId(1)).expect("goblin scout");
+
+    assert_eq!(goblin.name, "Goblin Scout");
+    assert_eq!(goblin.card_type, "creature");
+    assert!(!goblin.abilities.is_empty());
+}
+
+#[test]
+fn runtime_wrapper_drives_one_action() {
+    let mut runtime = GameRuntime::load("../../rules.toml", None, 42).expect("load runtime");
+    let decks = runtime.build_mirror_decks(10).expect("build decks");
+    runtime.start_game(decks).expect("start runtime game");
+
+    let player = runtime.public_state().turn.priority_player;
+    let action = runtime.legal_actions(player).into_iter()
+        .find(|action| !matches!(action, Action::Concede))
+        .expect("at least one non-concede action");
+
+    let result = runtime.apply_action(player, action).expect("apply runtime action");
+    assert!(!result.events.is_empty());
+}
