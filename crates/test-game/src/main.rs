@@ -20,13 +20,7 @@ fn main() {
         }
     };
 
-    let decks = match runtime.build_mirror_decks(5) {
-        Ok(decks) => decks,
-        Err(error) => {
-            eprintln!("ERROR: Failed to build demo decks: {:?}", error);
-            return;
-        }
-    };
+    let decks = runtime.build_demo_decks(5);
 
     if let Err(error) = runtime.start_game(decks) {
         eprintln!("ERROR: Failed to start game: {:?}", error);

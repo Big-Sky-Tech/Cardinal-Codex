@@ -1,8 +1,8 @@
 use crate::{
     engine::core::GameEngine,
+    error::CardinalError,
     ids::PlayerId,
     model::action::Action,
-    error::CardinalError,
 };
 
 /// Validate that an action is legal in the current game state.
@@ -13,15 +13,12 @@ use crate::{
 /// - Stack requirements are met (if action requires empty stack)
 /// - Zone ownership and card ownership are valid
 pub fn validate(engine: &GameEngine, player: PlayerId, action: &Action) -> Result<(), CardinalError> {
-    // If game has ended, no more actions allowed
     if engine.state.ended.is_some() {
         return Err(CardinalError("Game has ended".to_string()));
     }
 
-    // Check action-specific permissions
     match action {
         Action::PassPriority => {
-            // Only the priority player can pass priority
             if player != engine.state.turn.priority_player {
                 return Err(CardinalError(format!(
                     "Only priority player ({:?}) can pass priority",
@@ -30,12 +27,8 @@ pub fn validate(engine: &GameEngine, player: PlayerId, action: &Action) -> Resul
             }
             Ok(())
         }
-        Action::Concede => {
-            // Concede is always allowed
-            Ok(())
-        }
+        Action::Concede => Ok(()),
         Action::PlayCard { card, from } => {
-            // Active player only
             if player != engine.state.turn.active_player {
                 return Err(CardinalError(format!(
                     "Only active player ({:?}) can take this action",
@@ -43,12 +36,10 @@ pub fn validate(engine: &GameEngine, player: PlayerId, action: &Action) -> Resul
                 )));
             }
 
-            // Check phase permissions
             let current_phase = engine.rules.turn.phases.iter()
-                .find(|p| p.id.as_str() == engine.state.turn.phase.0)
+                .find(|phase| phase.id.as_str() == engine.state.turn.phase.0)
                 .ok_or_else(|| CardinalError("Invalid phase".to_string()))?;
 
-            // PlayCard requires the phase to allow actions
             if !current_phase.allow_actions {
                 return Err(CardinalError(format!(
                     "Current phase '{}' does not allow card plays",
@@ -56,9 +47,8 @@ pub fn validate(engine: &GameEngine, player: PlayerId, action: &Action) -> Resul
                 )));
             }
 
-            // Verify the source zone exists and is owned by the player
             let zone = engine.state.zones.iter()
-                .find(|z| z.id == *from)
+                .find(|zone| zone.id == *from)
                 .ok_or_else(|| CardinalError("Source zone does not exist".to_string()))?;
 
             if let Some(owner) = zone.owner {
@@ -67,115 +57,118 @@ pub fn validate(engine: &GameEngine, player: PlayerId, action: &Action) -> Resul
                 }
             }
 
-            // Verify the card exists in the source zone
             if !zone.cards.contains(card) {
                 return Err(CardinalError("Card is not in the specified source zone".to_string()));
             }
 
-            // If action requires empty stack, check that stack is empty
-            if let Some(action_def) = engine.rules.actions.iter()
-                .find(|a| a.id == "play_card")
-            {
+            if let Some(action_def) = engine.rules.actions.iter().find(|action| action.id == "play_card") {
                 if action_def.requires_empty_stack && !engine.state.stack.is_empty() {
                     return Err(CardinalError(
-                        "Cannot play card: stack is not empty and action requires empty stack"
-                            .to_string(),
+                        "Cannot play card: stack is not empty and action requires empty stack".to_string(),
                     ));
                 }
             }
 
             Ok(())
         }
-        Action::ChooseTarget { choice_id, target: _ } => {
-            // ChooseTarget is only valid if there's a pending choice with matching ID
-            match &engine.state.pending_choice {
-                Some(choice) if choice.id == *choice_id => Ok(()),
-                Some(choice) => Err(CardinalError(format!(
-                    "Choice ID mismatch: expected {}, got {}",
-                    choice.id, choice_id
-                ))),
-                None => Err(CardinalError("No pending choice to respond to".to_string())),
-            }
-        }
+        Action::ChooseTarget { choice_id, target: _ } => match &engine.state.pending_choice {
+            Some(choice) if choice.id == *choice_id => Ok(()),
+            Some(choice) => Err(CardinalError(format!(
+                "Choice ID mismatch: expected {}, got {}",
+                choice.id, choice_id
+            ))),
+            None => Err(CardinalError("No pending choice to respond to".to_string())),
+        },
+    }
+}
 
-        #[cfg(test)]
-        mod tests {
-            use super::*;
-            use crate::ids::CardId;
-            use crate::model::command::{EffectRef, StackItem};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ids::CardId;
+    use crate::model::command::{EffectRef, StackItem};
 
-            fn load_rules() -> crate::rules::schema::Ruleset {
-                crate::load_game_config("../../rules.toml", None).expect("load rules")
-            }
+    fn load_rules() -> crate::rules::schema::Ruleset {
+        crate::load_game_config("../../rules.toml", None).expect("load rules")
+    }
 
-            fn build_demo_decks(rules: &crate::rules::schema::Ruleset, deck_size: usize) -> Vec<Vec<CardId>> {
-                let ids: Vec<CardId> = rules.cards.iter()
-                    .filter_map(|card| card.id.parse::<u32>().ok().map(CardId))
-                    .collect();
-                assert!(!ids.is_empty());
+    fn build_demo_decks(rules: &crate::rules::schema::Ruleset, deck_size: usize) -> Vec<Vec<CardId>> {
+        let ids: Vec<CardId> = rules.cards.iter()
+            .filter_map(|card| card.id.parse::<u32>().ok().map(CardId))
+            .collect();
+        assert!(!ids.is_empty());
 
-                (0..rules.players.min_players)
-                    .map(|_| {
-                        (0..deck_size)
-                            .map(|index| ids[index % ids.len()])
-                            .collect()
-                    })
+        (0..rules.players.min_players)
+            .map(|_| {
+                (0..deck_size)
+                    .map(|index| ids[index % ids.len()])
                     .collect()
-            }
+            })
+            .collect()
+    }
 
-            #[test]
-            fn play_card_is_rejected_in_non_action_phase() {
-                let rules = load_rules();
-                let mut engine = GameEngine::new(rules.clone(), 42);
-                engine.start_game(build_demo_decks(&rules, 10)).expect("start game");
+    fn advance_to_play_card_window(engine: &mut GameEngine) -> (PlayerId, crate::ids::ZoneId, CardId) {
+        for _ in 0..64 {
+            let active_player = engine.state.turn.active_player;
+            let hand_zone = engine.state.zones.iter()
+                .find(|zone| zone.id.0 == format!("hand@{}", active_player.0))
+                .expect("hand zone");
 
-                let active_player = engine.state.turn.active_player;
-                let hand_zone = engine.state.zones.iter()
-                    .find(|zone| zone.id.0 == format!("hand@{}", active_player.0))
-                    .expect("hand zone");
-                let card = hand_zone.cards.first().copied().unwrap_or(CardId(999));
-
-                let result = validate(
-                    &engine,
-                    active_player,
-                    &Action::PlayCard { card, from: hand_zone.id.clone() },
-                );
-
-                assert!(result.is_err());
-            }
-
-            #[test]
-            fn play_card_requires_empty_stack() {
-                let rules = load_rules();
-                let mut engine = GameEngine::new(rules.clone(), 42);
-                engine.start_game(build_demo_decks(&rules, 10)).expect("start game");
-
-                for _ in 0..engine.state.players.len() {
-                    let player = engine.state.turn.priority_player;
-                    engine.apply_action(player, Action::PassPriority).expect("advance to upkeep");
+            if let Some(card) = hand_zone.cards.first().copied() {
+                let action = Action::PlayCard { card, from: hand_zone.id.clone() };
+                if validate(engine, active_player, &action).is_ok() {
+                    return (active_player, hand_zone.id.clone(), card);
                 }
-
-                let active_player = engine.state.turn.active_player;
-                let hand_zone = engine.state.zones.iter()
-                    .find(|zone| zone.id.0 == format!("hand@{}", active_player.0))
-                    .expect("hand zone");
-                let card = hand_zone.cards.first().copied().expect("card in hand");
-
-                engine.state.stack.push(StackItem {
-                    id: 1,
-                    source: Some(card),
-                    controller: active_player,
-                    effect: EffectRef::Builtin("test"),
-                });
-
-                let result = validate(
-                    &engine,
-                    active_player,
-                    &Action::PlayCard { card, from: hand_zone.id.clone() },
-                );
-
-                assert!(result.is_err());
             }
+
+            let player = engine.state.turn.priority_player;
+            engine.apply_action(player, Action::PassPriority).expect("advance window");
         }
+
+        panic!("no playable hand found");
+    }
+
+    #[test]
+    fn play_card_is_rejected_in_non_action_phase() {
+        let rules = load_rules();
+        let mut engine = GameEngine::new(rules.clone(), 42);
+        engine.start_game(build_demo_decks(&rules, 10)).expect("start game");
+
+        let active_player = engine.state.turn.active_player;
+        let hand_zone = engine.state.zones.iter()
+            .find(|zone| zone.id.0 == format!("hand@{}", active_player.0))
+            .expect("hand zone");
+        let card = hand_zone.cards.first().copied().unwrap_or(CardId(999));
+
+        let result = validate(
+            &engine,
+            active_player,
+            &Action::PlayCard { card, from: hand_zone.id.clone() },
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn play_card_requires_empty_stack() {
+        let rules = load_rules();
+        let mut engine = GameEngine::new(rules.clone(), 42);
+        engine.start_game(build_demo_decks(&rules, 10)).expect("start game");
+        let (active_player, hand_zone, card) = advance_to_play_card_window(&mut engine);
+
+        engine.state.stack.push(StackItem {
+            id: 1,
+            source: Some(card),
+            controller: active_player,
+            effect: EffectRef::Builtin("test"),
+        });
+
+        let result = validate(
+            &engine,
+            active_player,
+            &Action::PlayCard { card, from: hand_zone },
+        );
+
+        assert!(result.is_err());
     }
 }

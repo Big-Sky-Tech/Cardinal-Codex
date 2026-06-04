@@ -52,16 +52,35 @@ impl GameRuntime {
     }
 
     pub fn build_mirror_decks(&self, deck_size: usize) -> Result<Vec<Vec<CardId>>, EngineError> {
-        let mut card_ids: Vec<CardId> = self.engine.rules.cards.iter()
+        let card_ids: Vec<CardId> = self.engine.rules.cards.iter()
             .filter_map(|card| card.id.parse::<u32>().ok().map(CardId))
             .collect();
 
         if card_ids.is_empty() {
-            card_ids = (0..deck_size.max(1))
-                .map(|index| CardId(index as u32))
-                .collect();
+            return Err(CardinalError(
+                "Cannot build mirror decks: no numeric card IDs were loaded".to_string(),
+            ));
         }
 
+        Ok(self.build_repeated_decks(card_ids, deck_size))
+    }
+
+    pub fn build_demo_decks(&self, deck_size: usize) -> Vec<Vec<CardId>> {
+        let card_ids: Vec<CardId> = self.engine.rules.cards.iter()
+            .filter_map(|card| card.id.parse::<u32>().ok().map(CardId))
+            .collect();
+
+        if card_ids.is_empty() {
+            let placeholders = (0..deck_size.max(1))
+                .map(|index| CardId(index as u32))
+                .collect();
+            return self.build_repeated_decks(placeholders, deck_size);
+        }
+
+        self.build_repeated_decks(card_ids, deck_size)
+    }
+
+    fn build_repeated_decks(&self, card_ids: Vec<CardId>, deck_size: usize) -> Vec<Vec<CardId>> {
         let mut decks = Vec::new();
         for _ in 0..self.engine.state().players.len() {
             let deck = (0..deck_size)
@@ -69,7 +88,6 @@ impl GameRuntime {
                 .collect();
             decks.push(deck);
         }
-
-        Ok(decks)
+        decks
     }
 }
