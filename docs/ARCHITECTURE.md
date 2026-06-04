@@ -432,7 +432,7 @@ Here's the loop in pseudocode:
 
 ```
 loop {
-  render_game_state(engine.state)
+  render_game_state(engine.player_view(player))
   show_legal_actions(engine)
   input = read_player_input()
   result = engine.apply_action(player, input)
@@ -649,4 +649,3 @@ Cardinal is a **game engine in the truest sense**: it validates moves, applies r
 The key insight: **By separating the engine from the UI, we get reusability. By enforcing determinism, we get fairness. By keeping state centralized, we get clarity.**
 
 The hybrid card system extends this philosophy: **By supporting both TOML and scripts, we get simplicity where possible and power where needed — all while maintaining determinism and safety.**
-

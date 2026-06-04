@@ -1,5 +1,5 @@
 use crate::{
-    error::{EngineError, LegalityError},
+    error::{CardinalError, EngineError, LegalityError},
     ids::PlayerId,
     model::action::Action,
     model::event::Event,
@@ -60,7 +60,7 @@ impl GameEngine {
     pub fn start_game(&mut self, decks: Vec<Vec<crate::ids::CardId>>) -> Result<(), EngineError> {
         let expected_players = self.rules.players.min_players;
         if decks.len() != expected_players {
-            return Err(EngineError(format!(
+            return Err(CardinalError(format!(
                 "Expected {} decks, received {}",
                 expected_players,
                 decks.len()
@@ -73,7 +73,7 @@ impl GameEngine {
             let deck_zone_id = format!("deck@{}", player_idx);
             let deck_zone = state.zones.iter_mut()
                 .find(|zone| zone.id.0 == deck_zone_id)
-                .ok_or_else(|| EngineError(format!("Missing deck zone for player {}", player_idx)))?;
+                .ok_or_else(|| CardinalError(format!("Missing deck zone for player {}", player_idx)))?;
             deck_zone.cards = deck_cards;
         }
 

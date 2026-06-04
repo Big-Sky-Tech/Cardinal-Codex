@@ -52,12 +52,14 @@ impl GameRuntime {
     }
 
     pub fn build_mirror_decks(&self, deck_size: usize) -> Result<Vec<Vec<CardId>>, EngineError> {
-        let card_ids: Vec<CardId> = self.engine.rules.cards.iter()
+        let mut card_ids: Vec<CardId> = self.engine.rules.cards.iter()
             .filter_map(|card| card.id.parse::<u32>().ok().map(CardId))
             .collect();
 
         if card_ids.is_empty() {
-            return Err(EngineError("Cannot build decks: no numeric card IDs were loaded".to_string()));
+            card_ids = (0..deck_size.max(1))
+                .map(|index| CardId(index as u32))
+                .collect();
         }
 
         let mut decks = Vec::new();

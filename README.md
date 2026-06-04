@@ -77,10 +77,14 @@ cargo test
 ### Use in Your Project
 
 ```rust
-use cardinal::{GameEngine, Action, PlayerId};
+use cardinal::{Action, GameEngine};
+use cardinal::ids::CardId;
 
-let engine = GameEngine::new_from_file("rules.toml", seed)?;
-engine.start_game(deck_0, deck_1)?;
+let mut engine = GameEngine::new(cardinal::load_game_config("rules.toml", None)?, seed);
+engine.start_game(vec![
+    vec![CardId(1), CardId(2)],
+    vec![CardId(1), CardId(2)],
+])?;
 
 let result = engine.apply_action(player_id, action)?;
 for event in &result.events {
